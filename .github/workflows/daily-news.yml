@@ -2,7 +2,7 @@ name: 매일 뉴스 수집
 
 on:
   schedule:
-    - cron: "0 22 * * *"   # 한국시간 오전 7시
+    - cron: "7 22,1,4,7,10,13 * * *"   # 한국시간 7·10·13·16·19·22시
   workflow_dispatch:
   push:
     paths:
