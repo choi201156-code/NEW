@@ -13,6 +13,8 @@
   FRED_API_KEY                           선택: 미국 경제지표
   ANTHROPIC_API_KEY                      선택: 사설 이슈 AI 분석 + 해외 원문 찾기 + 논문 검색어 번역
   OPENALEX_API_KEY                       선택: 논문(OpenAlex) — 없어도 하루 소량은 됨
+  CHATKU_API_KEY, CHATKU_BASE_URL        선택: Claude 대신 경희대 챗쿠(팩트챗)로 AI 분석
+  CHATKU_MODEL                           선택: 챗쿠에서 쓸 모델 (기본 claude-sonnet-5)
 
 실행:
   python fetch_news.py          # 실제 수집
@@ -123,6 +125,9 @@ COLUMN_TAGS = ("칼럼", "시론", "기고", "논단", "기자수첩", "데스�
                "한마당", "프리즘", "인사이트", "기고문", "시사논평", "열린세상", "발언대")
 TAG_RE = re.compile(r"^\s*[\[【<〈(]\s*([^\]】>〉)]{1,20}?)\s*[\]】>〉)]")
 OPINION_QUERIES = ["사설", "칼럼", "시론", "기고", "기자수첩", "논단", "데스크 칼럼"]
+# '사설'만으로 검색하면 사설 학원·사설 구급차 같은 기사에 묻혀서, 주요 신문은 신문 이름과 함께 한 번 더 검색
+MAJOR_PAPERS = ["조선일보", "중앙일보", "동아일보", "한겨레", "경향신문", "한국일보", "서울신문", "세계일보",
+                "국민일보", "문화일보", "매일경제", "한국경제", "서울경제", "파이낸셜뉴스", "아시아경제", "헤럴드경제", "이데일리"]
 
 
 def clean(text: str) -> str:
@@ -211,14 +216,32 @@ def search_recent(query, since, cid, secret):
     return out
 
 
+AI = {"provider": "anthropic", "base": ""}   # main()에서 설정
+
+
+def chatku_url(base, path):
+    base = base.strip().rstrip("/")
+    base = re.sub(r"/chat/completions$", "", base)
+    if not base.endswith("/v1/gateway"):
+        base = re.sub(r"/v1$", "", base) + "/v1/gateway"
+    return f"{base}/{path}"
+
+
 def claude(prompt, key, model, system=None, max_tokens=8000):
-    """Claude API 호출 → 텍스트"""
-    body = {"model": model, "max_tokens": max_tokens,
-            "messages": [{"role": "user", "content": prompt}]}
-    if system:
-        body["system"] = system
+    """AI 호출 → 텍스트 (Claude 직접 또는 챗쿠 게이트웨이)"""
     for attempt in range(2):
         try:
+            if AI["provider"] == "chatku":
+                msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
+                res = http_json(chatku_url(AI["base"], "chat/completions/"), {
+                    "content-type": "application/json", "Authorization": f"Bearer {key}"},
+                    {"model": model, "messages": msgs, "max_tokens": max_tokens}, timeout=180)
+                c = res["choices"][0]["message"]["content"]
+                return c if isinstance(c, str) else "".join(x.get("text", "") for x in c)
+            body = {"model": model, "max_tokens": max_tokens,
+                    "messages": [{"role": "user", "content": prompt}]}
+            if system:
+                body["system"] = system
             res = http_json("https://api.anthropic.com/v1/messages", {
                 "content-type": "application/json", "x-api-key": key,
                 "anthropic-version": "2023-06-01"}, body, timeout=180)
@@ -262,27 +285,56 @@ def detect_outlets(title, desc):
     return [name for name, _, pat, _, _ in FOREIGN if re.search(pat, text)]
 
 
+# 본문에서만 언급돼도 인용으로 인정할 검색어 — '○○통신·○○신문'처럼 사진 출처 표기에는 잘 안 쓰는 형태
+BODY_QUERY = {
+    "블룸버그": "블룸버그통신", "로이터": "로이터통신", "WSJ": "월스트리트저널", "FT": "파이낸셜타임스",
+    "NYT": "뉴욕타임스", "WP": "워싱턴포스트", "AP": "AP통신", "AFP": "AFP통신", "이코노미스트": "이코노미스트지",
+    "닛케이": "니혼게이자이신문", "요미우리": "요미우리신문", "아사히": "아사히신문", "교도": "교도통신",
+    "신화": "신화통신", "글로벌타임스": "글로벌타임스", "SCMP": "사우스차이나모닝포스트",
+}
+PHOTO_RE = re.compile(r"^\s*[\[【(]\s*(포토|사진|화보|이 ?시각|영상|그래픽|카드뉴스|인포그래픽)")
+
+
 def fetch_foreign(since, cid, secret):
+    """
+    해외 매체 이름으로 네이버 뉴스를 검색.
+    - 제목·요약에 매체명이 나오면 확실한 인용
+    - '○○통신'처럼 인용할 때 쓰는 이름으로 검색돼 걸린 기사는, 요약엔 없어도 본문 인용으로 인정 (body)
+    """
     by_url = {}
+
+    def add(a, outlets, body=False):
+        if a["url"] not in by_url:
+            a.update(outlets=[], body_outlets=[])
+            by_url[a["url"]] = a
+        it = by_url[a["url"]]
+        for o in outlets:
+            if o not in it["outlets"]:
+                it["outlets"].append(o)
+            if body and o not in it["body_outlets"]:
+                it["body_outlets"].append(o)
+            if not body and o in it["body_outlets"]:
+                it["body_outlets"].remove(o)
+
     for name, query, *_ in FOREIGN:
-        try:
-            arts = search_recent(query, since, cid, secret)
-        except Exception as e:
-            print(f"  {name}: 실패 - {e}")
-            continue
+        queries = [(query, False)]
+        if name in BODY_QUERY:
+            queries = [(q, q == BODY_QUERY[name]) for q in dict.fromkeys([query, BODY_QUERY[name]])]
         n = 0
-        for a in arts:
-            outlets = detect_outlets(a["title"], a["description"])
-            if name not in outlets or opinion_kind(a["title"], a["_link"]):
+        for q, body_ok in queries:
+            try:
+                arts = search_recent(q, since, cid, secret)
+            except Exception as e:
+                print(f"  {name}({q}): 실패 - {e}")
                 continue
-            if a["url"] in by_url:
-                for o in outlets:
-                    if o not in by_url[a["url"]]["outlets"]:
-                        by_url[a["url"]]["outlets"].append(o)
-            else:
-                a["outlets"] = outlets
-                by_url[a["url"]] = a
-            n += 1
+            for a in arts:
+                if opinion_kind(a["title"], a["_link"]) or PHOTO_RE.match(a["title"]):
+                    continue
+                found = detect_outlets(a["title"], a["description"])
+                if name in found:
+                    add(a, found); n += 1
+                elif body_ok:
+                    add(a, [name], body=True); n += 1
         print(f"  {name}: {n}건")
     return strip_private(list(by_url.values()))
 
@@ -311,8 +363,10 @@ def add_original_queries(items, key, model):
 # ─────────────────────────────── 3. 사설·칼럼 + 이슈 ───────────────────────────────
 
 def fetch_opinion(since, keywords, cid, secret):
+    """사설은 전날 저녁에 미리 올라오는 경우가 많아서 36시간 범위로 찾음"""
+    since = min(since, datetime.now(KST) - timedelta(hours=36))
     by_url = {}
-    for q in OPINION_QUERIES:
+    for q in OPINION_QUERIES + [f"{p} 사설" for p in MAJOR_PAPERS]:
         try:
             arts = search_recent(q, since, cid, secret)
         except Exception as e:
@@ -367,7 +421,8 @@ JOSA = sorted(["으로부터", "에서는", "에게서", "으로는", "이라는
                "부터", "보다", "처럼", "마저", "조차", "이나", "이며", "이고", "하고", "과의", "와의",
                "의", "이", "가", "은", "는", "을", "를", "에", "와", "과", "도", "만", "로", "나", "냐"],
               key=len, reverse=True)
-STOP = set("""사설 칼럼 시론 기고 논단 기자수첩 데스크 오피니언 정부 우리 국민 대한 위해 위한 문제 필요
+STOP = set("""지난 따라 같은 것은 것이 말이다 정치적 경제적 사회적 이런 그런 어떤 모든 우리의 지금의 위한 통해 대해 대한 아니라 함께 앞으로 여전히 무엇을 누구를 얼마나 사람 사람들 시작 이유
+사설 칼럼 시론 기고 논단 기자수첩 데스크 오피니언 정부 우리 국민 대한 위해 위한 문제 필요
 해야 한다 한다면 이번 지금 오늘 내일 어제 이제 다시 결국 모두 누구 무엇 어떻게 무슨 이유 때문 대해 관련
 없다 있다 된다 않다 아니다 하라 말라 해선 안된다 안 못 왜 더 또 수 것 등 및 그 이 저 새 각 전 후 중
 年 月 日 vs 시대 사회 나라 한국 대한민국""".split())
@@ -376,11 +431,13 @@ STOP = set("""사설 칼럼 시론 기고 논단 기자수첩 데스크 오피�
 def tokens(text):
     out = set()
     for w in re.findall(r"[가-힣A-Za-z0-9·]+", TAG_RE.sub("", text)):
-        for j in JOSA:
+        for j in ([] if w in ("김정은", "김여정") else JOSA):
             if w.endswith(j) and len(w) - len(j) >= 2:
                 w = w[: -len(j)]
                 break
-        if len(w) >= 2 and w not in STOP and not w.isdigit():
+        if (len(w) >= 2 and w not in STOP and not w.isdigit()
+                and not re.fullmatch(r"\d+(일|월|년|%|명|원|개|건|세|위|차|배|조|억|만)?", w)
+                and not re.search(r"(했다|한다|이다|된다|있다|없다|말이다|하라|해야|겠다)$", w)):
             out.add(w)
     return out
 
@@ -390,8 +447,7 @@ def issues_by_frequency(items):
     press_of = defaultdict(set)
     ids_of = defaultdict(list)
     for i, a in enumerate(items):
-        weight_title = tokens(a["title"])
-        for t in weight_title | tokens(a["description"][:80]):
+        for t in tokens(a["title"]):
             press_of[t].add(a["press"])
             ids_of[t].append(i)
     ranked = sorted(press_of, key=lambda t: (len(press_of[t]), len(ids_of[t])), reverse=True)
@@ -573,7 +629,12 @@ def mock_data(keywords):
         {**art("닛케이 \"日 정부, 한일 정상회담 연내 개최 조율\"", "https://www.yna.co.kr/view/4", "정치", 200,
                "니혼게이자이신문은 일본 정부가 한일 정상회담 일정을 조율 중이라고 보도했다."),
          "outlets": ["닛케이"], "en_query": "Japan South Korea summit year end Nikkei"},
+        {**art("김정은, 단둥 방문 마치고 귀국…왕후닝 배웅", "https://www.yna.co.kr/view/5", "정치", 60,
+               "김정은 북한 국무위원장이 24일 중국 랴오닝성 단둥 방문 일정을 마치고 북한으로 돌아갔다."),
+         "outlets": ["신화"], "body_outlets": ["신화"], "en_query": "Kim Jong Un Dandong Wang Huning"},
     ]
+    for a in foreign:
+        a.setdefault("body_outlets", [])
     op = [
         ("https://www.chosun.com/opinion/editorial/1", "[사설] 물가 다시 들썩, 금리 인하 서두를 때 아니다", "사설"),
         ("https://www.hani.co.kr/arti/opinion/editorial/2", "[사설] 고물가에 서민 부담, 금리 인하로 숨통 틔워야", "사설"),
@@ -625,6 +686,12 @@ def main():
     env = os.environ.get
     cid, secret = env("NAVER_CLIENT_ID", ""), env("NAVER_CLIENT_SECRET", "")
     ai_key, ai_model = env("ANTHROPIC_API_KEY", ""), config.get("ai_model", "claude-haiku-5-5")
+    if env("CHATKU_API_KEY") and env("CHATKU_BASE_URL"):
+        AI.update(provider="chatku", base=env("CHATKU_BASE_URL"))
+        ai_key, ai_model = env("CHATKU_API_KEY"), env("CHATKU_MODEL") or "claude-sonnet-5"
+        print(f"AI 분석: 챗쿠 ({ai_model})")
+    elif ai_key:
+        print(f"AI 분석: Claude ({ai_model})")
     if not mock and not (cid and secret):
         sys.exit("NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 없습니다.")
 
@@ -632,7 +699,7 @@ def main():
     since = now - timedelta(hours=config.get("lookback_hours", 24))
     result = {"date": now.strftime("%Y-%m-%d"), "generated_at": now.isoformat(),
               "outlet_meta": {n: {"en": en, "domain": dom} for n, _, _, en, dom in FOREIGN},
-              "config": {"keywords": config.get("keywords", []), "fields": fields,
+              "config": {"keywords": config.get("keywords", []), "fields": fields, "stopwords": config.get("stopwords", []),
                          "lookback_hours": config.get("lookback_hours", 24), "keep_days": config.get("keep_days", 30)},
               "papers": {}}
 
