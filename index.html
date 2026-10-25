@@ -92,6 +92,28 @@
   .ind .src { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
   .ind .src a { color: var(--muted); }
   .grp { font-size: 14px; font-weight: 700; margin: 18px 0 8px; }
+  h2.ph { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; cursor: pointer; text-align: left; font: inherit; color: var(--text); }
+  .kpi:hover { border-color: var(--accent); }
+  .kpi span { display: block; font-size: 12px; color: var(--muted); }
+  .kpi b { font-size: 26px; letter-spacing: -0.02em; }
+  .hbars { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px 10px; align-items: center; font-size: 14px; }
+  .hbars button { all: unset; cursor: pointer; } .hbars button:hover { color: var(--accent); }
+  .hbar { height: 14px; background: var(--chip); border-radius: 0 4px 4px 0; position: relative; }
+  .hbar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hbars .v { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .words { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: baseline; }
+  .word { border: 0; background: none; cursor: pointer; font: inherit; color: var(--text); padding: 2px 4px; border-radius: 6px; line-height: 1.2; }
+  .word:hover { background: var(--chip); color: var(--accent); }
+  .word small { font-size: 11px; color: var(--muted); margin-left: 2px; font-weight: 400; }
+  .w1 { font-size: 13px; color: var(--muted); } .w2 { font-size: 15px; } .w3 { font-size: 18px; font-weight: 500; } .w4 { font-size: 22px; font-weight: 700; } .w5 { font-size: 27px; font-weight: 700; color: var(--accent); }
+  .share { display: flex; height: 22px; border-radius: 6px; overflow: hidden; gap: 2px; }
+  .share i { display: block; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 13px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 5px; vertical-align: -1px; }
+  .legend b { font-weight: 500; color: var(--muted); margin-left: 3px; }
+  .bodytag { font-size: 11px; color: var(--muted); }
   h3.sub { font-size: 15px; margin: 18px 0 6px; } h3.sub small { font-weight: 400; color: var(--muted); font-size: 12px; }
   details.sub { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
   .fld { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; display: grid; gap: 6px; background: var(--bg); }
@@ -184,20 +206,41 @@
 </header>
 <main class="wrap">
   <section class="panel" id="aiPanel">
-    <h2>AI와 대화하며 키워드 찾기</h2>
+    <h2 class="ph">AI와 대화하며 키워드 찾기 <button class="btn sm" data-close="aiPanel">닫기 ✕</button></h2>
     <p class="help">공부 중인 자료를 넣고 대화하면, AI가 관심사를 찾아 뉴스 키워드를 추천해요. 추천 키워드를 누르면 내 키워드에 추가돼요.</p>
     <details id="keyBox">
-      <summary>🔑 Claude API 키 설정 <span id="keyState"></span></summary>
+      <summary>🔑 AI 연결 설정 <span id="keyState"></span></summary>
       <div style="padding-top:10px">
         <div class="ai-key">
-          <input id="apiKey" type="password" placeholder="sk-ant-로 시작하는 API 키" autocomplete="off">
-          <select id="model">
-            <option value="claude-sonnet-5-5">Sonnet 5.5 (똑똑함)</option>
-            <option value="claude-haiku-5-5">Haiku 5.5 (저렴·빠름)</option>
+          <select id="provider">
+            <option value="chatku">챗쿠 (경희대 ChatKHU · 팩트챗)</option>
+            <option value="anthropic">Claude (Anthropic API)</option>
           </select>
-          <button class="btn" id="keySave">저장</button>
         </div>
-        <p class="help">키는 이 브라우저에만 저장되고, Claude 서버로만 전송돼요. 발급: platform.claude.com → API Keys. 다른 사람과 같이 쓰는 컴퓨터에서는 저장하지 마세요.</p>
+        <div id="pvAnthropic">
+          <div class="ai-key">
+            <input id="apiKey" type="password" placeholder="sk-ant-로 시작하는 API 키" autocomplete="off">
+            <select id="model">
+              <option value="claude-sonnet-5-5">Sonnet 5.5 (똑똑함)</option>
+              <option value="claude-haiku-5-5">Haiku 5.5 (저렴·빠름)</option>
+            </select>
+          </div>
+          <p class="help">발급: platform.claude.com → API Keys.</p>
+        </div>
+        <div id="pvChatku">
+          <div class="ai-key">
+            <input id="ckKey" type="password" placeholder="챗쿠에서 발급한 API 키" autocomplete="off">
+            <input id="ckBase" placeholder="요청 주소 (키 발급 화면·안내 문서에 나온 https://… 주소)" autocomplete="off">
+          </div>
+          <div class="ai-key">
+            <input id="ckModel" list="ckModels" placeholder="모델 이름 (예: claude-sonnet-5, gpt-5.5)" autocomplete="off">
+            <datalist id="ckModels"></datalist>
+            <button class="btn" id="ckList">모델 목록 불러오기</button>
+          </div>
+          <p class="help">챗쿠 크레딧이 차감돼요. PDF·Word는 글자만 뽑아서 보내고, 이미지는 보낼 수 없어요.</p>
+        </div>
+        <button class="btn" id="keySave">저장</button>
+        <p class="help">키는 이 브라우저에만 저장되고, 선택한 AI 서버로만 전송돼요. 다른 사람과 같이 쓰는 컴퓨터에서는 저장하지 마세요.</p>
       </div>
     </details>
     <div class="drop" id="drop">📎 학습자료를 여기에 끌어다 놓거나 클릭해서 선택<br><small>PDF · Word(.docx) · 텍스트(.txt, .md) · 이미지 — 한글(.hwp)은 PDF로 저장해서 넣어주세요</small></div>
@@ -211,7 +254,7 @@
     <div class="cost" id="cost"></div>
   </section>
   <section class="panel" id="panel">
-    <h2>관심 분야와 키워드</h2>
+    <h2 class="ph">관심 분야와 키워드 <button class="btn sm" data-close="panel">닫기 ✕</button></h2>
     <p class="help">분야를 만들고 키워드를 넣으면, '분야별' 화면에서 그 분야의 뉴스·많이 인용된 해외 매체·관련 지표·논문을 모아 보여줘요.</p>
     <div id="fieldsEd"></div>
     <button class="btn" id="fieldAdd">＋ 분야 추가</button>
@@ -260,10 +303,10 @@
 <script>
 const ORDER = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화", "사설", "칼럼", "오피니언", "연예", "스포츠", "기타"];
 const MAIN = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화"];
-const VIEWS = [["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["foreign", "해외 인용"], ["opinion", "사설·칼럼"], ["indicators", "경제지표"]];
+const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["foreign", "해외 인용"], ["opinion", "사설·칼럼"], ["indicators", "경제지표"]];
 const COLOR = s => getComputedStyle(document.documentElement)
   .getPropertyValue("--s-" + s.split("/")[0].trim()).trim() || "#868e96";
-const state = { data: null, view: "notes", sec: "전체", chip: "전체", issue: null, q: "", myKws: [], cfg: null, noteDate: null, pinTarget: 0 };
+const state = { data: null, view: "home", sec: "전체", chip: "전체", issue: null, q: "", myKws: [], cfg: null, noteDate: null, pinTarget: 0 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -283,7 +326,7 @@ async function loadDay(date) {
   if (!state.cfg) {
     const c = state.data.config || { keywords: Object.keys(state.data.keywords || {}), fields: [] };
     state.cfg = { keywords: [...(c.keywords || [])], fields: JSON.parse(JSON.stringify(c.fields || [])),
-                  lookback_hours: c.lookback_hours || 24, keep_days: c.keep_days || 30 };
+                  stopwords: [...(c.stopwords || [])], lookback_hours: c.lookback_hours || 24, keep_days: c.keep_days || 30 };
     state.myKws = state.cfg.keywords;
     renderFieldsEd();
   }
@@ -359,13 +402,14 @@ function showList(list, extra) {
 
 function render() {
   const d = state.data;
-  const n = { notes: noteItems(state.noteDate).length, fields: (state.cfg?.fields || []).length, news: allArticles().filter(a => a.kws.length).length, foreign: (d.foreign || []).length,
+  const n = { home: "", notes: noteItems(state.noteDate).length, fields: (state.cfg?.fields || []).length, news: allArticles().filter(a => a.kws.length).length, foreign: (d.foreign || []).length,
     opinion: opinionItems().length, indicators: ((d.indicators || {}).kr || []).length + ((d.indicators || {}).us || []).length };
   $("views").innerHTML = VIEWS.map(([v, l]) =>
-    `<button class="view ${v === state.view ? "on" : ""}" data-view="${v}">${l}<small>${n[v]}</small></button>`).join("");
+    `<button class="view ${v === state.view ? "on" : ""}" data-view="${v}">${l}${n[v] === "" ? "" : `<small>${n[v]}</small>`}</button>`).join("");
   $("topbox").innerHTML = ""; $("chips").innerHTML = ""; $("list").innerHTML = ""; $("meta").textContent = "";
   $("q").parentElement.style.display = "";
-  ({ notes: renderNotes, fields: renderFields, news: renderNews, foreign: renderForeign, opinion: renderOpinion, indicators: renderIndicators })[state.view]();
+  if (state.view !== "fields") $("panel").classList.remove("open");
+  ({ home: renderHome, notes: renderNotes, fields: renderFields, news: renderNews, foreign: renderForeign, opinion: renderOpinion, indicators: renderIndicators })[state.view]();
 }
 
 /* ① 키워드 뉴스 */
@@ -384,13 +428,13 @@ const d = () => state.data;
 function renderForeign() {
   const items = d().foreign || [];
   const meta = d().outlet_meta || {};
-  if (!items.length) { $("tabs").innerHTML = ""; $("list").innerHTML = `<div class="empty">오늘 수집된 해외 인용 기사가 없어요. (새 수집 스크립트로 한 번 실행된 뒤부터 보여요)</div>`; return; }
+  if (!items.length) { $("tabs").innerHTML = ""; $("list").innerHTML = `<div class="empty">${d().foreign === undefined ? oldDataMsg() : "이 날은 해외 매체를 인용한 기사가 없어요."}</div>`; return; }
   const inScope = s => s === "전체" ? items : items.filter(a => a.section === s);
   setTabs(["전체", ...ORDER.filter(s => ["정치", "경제", "세계"].includes(s) || items.some(a => a.section === s))], s => inScope(s).length);
   const inSec = inScope(state.sec);
   const count = countBy(inSec, a => a.outlets);
   const top = byCount(count).slice(0, 6);
-  $("topbox").innerHTML = `<div class="box"><h3>오늘 ${state.sec === "전체" ? "" : esc(state.sec) + " 기사에서 "}가장 많이 인용된 해외 매체 <small>제목·요약에 매체명이 나온 기사 기준</small></h3>
+  $("topbox").innerHTML = `<div class="box"><h3>오늘 ${state.sec === "전체" ? "" : esc(state.sec) + " 기사에서 "}가장 많이 인용된 해외 매체 <small>제목·요약 또는 본문에서 매체를 인용한 기사 기준</small></h3>
     <div class="top5">${top.map(o => `<span>${esc(o)}<b>${count[o]}</b></span>`).join("")}</div>
     <p class="note">'원문 찾기'는 해외 매체 사이트에서 같은 내용의 기사를 구글 뉴스로 검색해요. 블룸버그·WSJ·FT 등은 유료 구독 기사일 수 있어요.</p></div>`;
   setChips("모든 매체", byCount(count), count, inSec.length);
@@ -399,13 +443,17 @@ function renderForeign() {
     const q = (a.en_query ? a.en_query + " " : "") + `site:${m.domain} when:3d`;
     const url = `https://news.google.com/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
     return `<a class="olink" href="${url}" target="_blank" rel="noopener"><b>${esc(m.en || o)}</b> 원문 찾기 ↗</a>`;
-  }).join("")}</div>`;
+  }).join("")}${(a.body_outlets || []).length ? `<span class="bodytag">· ${a.body_outlets.map(esc).join(", ")}: 본문에서 인용</span>` : ""}</div>`;
   showList(searchSort(inSec.filter(a => state.chip === "전체" || a.outlets.includes(state.chip)), a => a.outlets.join(" ")), links);
 }
 
 /* ③ 사설·칼럼 */
+function oldDataMsg() {
+  return "이 날짜 자료는 예전 수집 방식으로 모아져서 이 항목이 없어요. GitHub Actions에서 '매일 뉴스 수집'을 새로 실행하면 오늘 날짜로 생겨요.";
+}
 function renderOpinion() {
   const items = opinionItems().map((a, i) => ({ ...a, _i: i }));
+  if (!items.length) { setTabs(["전체"], () => 0); $("list").innerHTML = `<div class="empty">${d().opinion === undefined ? oldDataMsg() : "이 날은 수집된 사설·칼럼이 없어요."}</div>`; return; }
   const iss = (d().issues || {}).items || [];
   const method = (d().issues || {}).method;
   const inScope = s => s === "전체" ? items : items.filter(a => a.kind === s);
@@ -504,7 +552,7 @@ function repoInfo() {
 function configJson() {
   const fields = state.cfg.fields.filter(f => f.name).map(f => ({ name: f.name, keywords: f.keywords || [],
     indicators: f.indicators || [], papers: !!f.papers, paper_terms: f.paper_terms || [] }));
-  return { keywords: state.myKws, fields, lookback_hours: state.cfg.lookback_hours, keep_days: state.cfg.keep_days };
+  return { keywords: state.myKws, fields, stopwords: wordStops(), lookback_hours: state.cfg.lookback_hours, keep_days: state.cfg.keep_days };
 }
 async function saveKws() {
   const cfg = configJson();
@@ -526,13 +574,20 @@ async function saveKws() {
   if (r) window.open(`https://github.com/${r.owner}/${r.repo}/edit/main/keywords.json`, "_blank");
 }
 
-$("openSettings").onclick = () => $("panel").classList.toggle("open");
+$("openSettings").onclick = () => {
+  const open = !(state.view === "fields" && $("panel").classList.contains("open"));
+  $("aiPanel").classList.remove("open");
+  if (state.view !== "fields") { state.view = "fields"; state.sec = "전체"; state.chip = "전체"; render(); }
+  $("panel").classList.toggle("open", open);
+  window.scrollTo(0, 0);
+};
+document.addEventListener("click", e => { const b = e.target.closest("[data-close]"); if (b) $(b.dataset.close).classList.remove("open"); });
 $("kwAdd").onclick = addKw;
 $("kwInput").onkeydown = e => { if (e.key === "Enter" && !e.isComposing) addKw(); };
 $("kwlist").onclick = e => { const b = e.target.closest("button"); if (b) { state.myKws.splice(+b.dataset.i, 1); renderKwList(); } };
 $("kwSave").onclick = saveKws;
 
-$("views").onclick = e => { const b = e.target.closest(".view"); if (b) { state.view = b.dataset.view; state.sec = "전체"; state.chip = "전체"; state.issue = null; render(); } };
+$("views").onclick = e => { const b = e.target.closest(".view"); if (b) { $("aiPanel").classList.remove("open"); state.view = b.dataset.view; state.sec = "전체"; state.chip = "전체"; state.issue = null; render(); } };
 $("topbox").onclick = e => { const b = e.target.closest(".issue"); if (b) { const i = +b.dataset.issue; state.issue = state.issue === i ? null : i; state.chip = "전체"; render(); } };
 $("tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { state.sec = b.dataset.sec; state.chip = "전체"; render(); } };
 $("chips").onclick = e => { const b = e.target.closest(".chip"); if (b) { state.chip = b.dataset.chip; render(); } };
@@ -550,19 +605,126 @@ const PRICE = { // 1M 토큰당 달러: 입력, 출력, 캐시 쓰기, 캐시 �
 };
 const ai = { files: [], history: [], spent: 0, busy: false };
 
+const aiCfg = () => {
+  const provider = store.get("ai_provider") || "chatku";
+  return provider === "chatku"
+    ? { provider, key: store.get("ck_key") || "", base: store.get("ck_base") || "", model: store.get("ck_model") || "claude-sonnet-5" }
+    : { provider, key: store.get("claude_key") || "", model: store.get("claude_model") || "claude-sonnet-5-5" };
+};
+const hasAiKey = () => { const c = aiCfg(); return !!(c.key && (c.provider !== "chatku" || c.base)); };
 function keyState() {
-  const has = !!store.get("claude_key");
-  $("keyState").textContent = has ? "— 저장됨 ✓" : "— 먼저 키를 넣어주세요";
-  if (!has) $("keyBox").open = true;
+  const c = aiCfg();
+  $("keyState").textContent = hasAiKey() ? `— ${c.provider === "chatku" ? "챗쿠" : "Claude"} 연결됨 ✓` : "— 먼저 키를 넣어주세요";
+  if (!hasAiKey()) $("keyBox").open = true;
 }
+function showProvider() {
+  const ck = $("provider").value === "chatku";
+  $("pvAnthropic").style.display = ck ? "none" : ""; $("pvChatku").style.display = ck ? "" : "none";
+}
+$("provider").value = store.get("ai_provider") || "chatku";
 $("apiKey").value = store.get("claude_key") || "";
 $("model").value = store.get("claude_model") || "claude-sonnet-5-5";
+$("ckKey").value = store.get("ck_key") || ""; $("ckBase").value = store.get("ck_base") || ""; $("ckModel").value = store.get("ck_model") || "";
+showProvider();
+$("provider").onchange = showProvider;
 $("keySave").onclick = () => {
-  store.set("claude_key", $("apiKey").value.trim());
-  store.set("claude_model", $("model").value);
-  keyState(); $("keyBox").open = false;
+  store.set("ai_provider", $("provider").value);
+  store.set("claude_key", $("apiKey").value.trim()); store.set("claude_model", $("model").value);
+  store.set("ck_key", $("ckKey").value.trim()); store.set("ck_base", $("ckBase").value.trim()); store.set("ck_model", $("ckModel").value.trim());
+  keyState(); if (hasAiKey()) $("keyBox").open = false;
+  if (state.view === "notes" && state.data) render();
 };
 $("model").onchange = () => store.set("claude_model", $("model").value);
+
+/* AI 호출 공통: Claude 직접 또는 챗쿠(팩트챗 게이트웨이, OpenAI 방식) */
+function chatkuUrl(base, path) {
+  base = base.trim().replace(/\/+$/, "");
+  if (/\/chat\/completions$/.test(base)) base = base.replace(/\/chat\/completions$/, "");
+  if (!/\/v1\/gateway$/.test(base)) base = base.replace(/\/v1$/, "") + "/v1/gateway";
+  return `${base}/${path}`;
+}
+const pdfCache = new Map();
+async function pdfText(b64data) {
+  const k = b64data.length + ":" + b64data.slice(0, 64);
+  if (pdfCache.has(k)) return pdfCache.get(k);
+  if (!window.pdfjsLib) {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const bytes = Uint8Array.from(atob(b64data), c => c.charCodeAt(0));
+  const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+  const pages = [];
+  for (let i = 1; i <= Math.min(doc.numPages, 300); i++) {
+    const tc = await (await doc.getPage(i)).getTextContent();
+    pages.push(tc.items.map(x => x.str).join(" "));
+  }
+  const text = pages.join("\n\n");
+  pdfCache.set(k, text);
+  return text;
+}
+async function blocksToText(content) {
+  if (typeof content === "string") return content;
+  const parts = [];
+  for (const b of content || []) {
+    if (b.type === "text") parts.push(b.text);
+    else if (b.type === "document" && b.source?.type === "text") parts.push(`[자료: ${b.title || ""}]\n${b.source.data}`);
+    else if (b.type === "document" && b.source?.media_type === "application/pdf") {
+      try { parts.push(`[자료: ${b.title || "PDF"}]\n${await pdfText(b.source.data)}`); }
+      catch { parts.push(`[자료: ${b.title || "PDF"} — 글자를 뽑지 못했어요]`); }
+    } else if (b.type === "image") parts.push("[이미지 자료는 챗쿠로 보낼 수 없어 빠졌어요]");
+  }
+  return parts.join("\n\n");
+}
+function aiError(status, msg, provider) {
+  let m = `오류가 났어요: ${msg}`;
+  if (status === 401 || status === 403) m = "API 키가 올바르지 않거나 권한이 없어요. 🔑 AI 연결 설정을 확인해 주세요.";
+  else if (status === 402 || /credit|크레딧|balance/i.test(msg)) m = provider === "chatku" ? "챗쿠 크레딧이 부족해요." : "API 크레딧이 부족해요. platform.claude.com → Billing에서 충전해 주세요.";
+  else if (status === 429) m = "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
+  else if (status === 404 && provider === "chatku") m = "요청 주소나 모델 이름이 맞지 않아요. 🔑 설정에서 주소·모델을 확인해 주세요.";
+  return new Error(m);
+}
+async function aiChat({ system, messages, maxTokens = 4000 }) {
+  const c = aiCfg();
+  let res;
+  try {
+    if (c.provider === "chatku") {
+      const msgs = [{ role: "system", content: system }];
+      for (const m of messages) msgs.push({ role: m.role, content: await blocksToText(m.content) });
+      res = await fetch(chatkuUrl(c.base, "chat/completions/"), { method: "POST",
+        headers: { "content-type": "application/json", Authorization: `Bearer ${c.key}` },
+        body: JSON.stringify({ model: c.model, messages: msgs, max_tokens: maxTokens }) });
+    } else {
+      res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": c.key, "anthropic-version": "2023-06-01",
+                   "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: c.model, max_tokens: maxTokens, system, messages }) });
+    }
+  } catch (e) {
+    throw new Error(c.provider === "chatku"
+      ? "챗쿠에 연결하지 못했어요. 주소가 맞는지 확인해 주세요. 주소가 맞다면 챗쿠가 웹페이지에서 직접 부르는 걸 막고 있는 거예요(이 경우 사이트 대화는 Claude 키로, 매일 분석은 GitHub에서 챗쿠로 돌릴 수 있어요)."
+      : "연결에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.");
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw aiError(res.status, data?.error?.message || data?.detail || data?.message || res.statusText, c.provider);
+  if (c.provider === "chatku") {
+    let t = data.choices?.[0]?.message?.content ?? "";
+    if (Array.isArray(t)) t = t.map(x => x.text || "").join("");
+    return { text: t, content: [{ type: "text", text: t }], usage: null, model: c.model, provider: c.provider };
+  }
+  return { text: data.content.filter(b => b.type === "text").map(b => b.text).join("\n"), content: data.content,
+           usage: data.usage, model: c.model, provider: c.provider };
+}
+$("ckList").onclick = async () => {
+  const key = $("ckKey").value.trim(), base = $("ckBase").value.trim();
+  if (!key || !base) { flash("키와 요청 주소를 먼저 넣어주세요"); return; }
+  try {
+    const res = await fetch(chatkuUrl(base, "models/"), { headers: { Authorization: `Bearer ${key}` } });
+    const data = await res.json();
+    const list = (data.data || data.models || (Array.isArray(data) ? data : [])).map(m => m.id || m.name || m).filter(x => typeof x === "string");
+    $("ckModels").innerHTML = list.map(m => `<option value="${esc(m)}">`).join("");
+    flash(list.length ? `모델 ${list.length}개를 불러왔어요. 모델 칸을 눌러 고르세요` : "모델 목록이 비어 있어요");
+  } catch { flash("모델 목록을 못 불러왔어요. 주소와 키를 확인해 주세요"); }
+};
 
 const readAs = (file, how) => new Promise((ok, no) => {
   const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no;
@@ -663,8 +825,7 @@ $("chat").onclick = e => {
 };
 
 async function send() {
-  const key = store.get("claude_key");
-  if (!key) { keyState(); $("apiKey").focus(); return; }
+  if (!hasAiKey()) { keyState(); return; }
   let text = $("ask").value.trim();
   if (!text && ai.files.length && !ai.history.length) text = "이 자료를 보고 내 관심사를 찾아서 받아볼 만한 뉴스 키워드를 추천해줘.";
   if (!text || ai.busy) return;
@@ -672,49 +833,30 @@ async function send() {
   $("ask").value = "";
   ai.history.push({ role: "user", content: text });
   ai.busy = true; renderChat();
-  const model = $("model").value;
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({ model, max_tokens: 4000, system: systemPrompt(), messages: buildMessages() }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      const msg = data?.error?.message || res.statusText;
-      let friendly = `오류가 났어요: ${msg}`;
-      if (res.status === 401) friendly = "API 키가 올바르지 않아요. 🔑 키 설정에서 다시 확인해 주세요.";
-      else if (/credit balance/i.test(msg)) friendly = "API 크레딧이 부족해요. platform.claude.com → Billing에서 충전해 주세요.";
-      else if (res.status === 429) friendly = "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
-      ai.history.pop(); // 실패한 질문은 기록에서 빼고 입력칸에 되돌림
-      ai.history.push({ role: "assistant", error: friendly, local: true });
-      $("ask").value = text;
-    } else {
-      const raw = data.content.filter(b => b.type === "text").map(b => b.text).join("\n");
-      const m = raw.match(/<keywords>([\s\S]*?)<\/keywords>/);
-      let recs = [];
-      if (m) { try { recs = JSON.parse(m[1]).map(String).map(s => s.trim()).filter(Boolean); } catch {} }
-      ai.history.push({ role: "assistant", content: data.content, shown: raw.replace(/<keywords>[\s\S]*?<\/keywords>/, "").trim(), recs });
-      const u = data.usage || {}, p = PRICE[model] || PRICE["claude-sonnet-5-5"];
+    const out = await aiChat({ system: systemPrompt(), messages: buildMessages(), maxTokens: 4000 });
+    const raw = out.text;
+    const m = raw.match(/<keywords>([\s\S]*?)<\/keywords>/);
+    let recs = [];
+    if (m) { try { recs = JSON.parse(m[1]).map(String).map(s => s.trim()).filter(Boolean); } catch {} }
+    ai.history.push({ role: "assistant", content: out.content, shown: raw.replace(/<keywords>[\s\S]*?<\/keywords>/, "").trim(), recs });
+    if (out.provider === "chatku") $("cost").textContent = "챗쿠 크레딧에서 차감돼요";
+    else {
+      const u = out.usage || {}, p = PRICE[out.model] || PRICE["claude-sonnet-5-5"];
       ai.spent += ((u.input_tokens || 0) * p[0] + (u.output_tokens || 0) * p[1]
         + (u.cache_creation_input_tokens || 0) * p[2] + (u.cache_read_input_tokens || 0) * p[3]) / 1e6;
       $("cost").textContent = `이번 대화 비용 약 $${ai.spent.toFixed(3)} (약 ${Math.ceil(ai.spent * 1400)}원)`;
     }
   } catch (e) {
-    ai.history.pop();
-    ai.history.push({ role: "assistant", error: "연결에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.", local: true });
+    ai.history.pop(); // 실패한 질문은 기록에서 빼고 입력칸에 되돌림
+    ai.history.push({ role: "assistant", error: e.message, local: true });
     $("ask").value = text;
   }
   ai.busy = false; renderChat();
 }
 $("send").onclick = send;
 $("ask").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
-$("openAi").onclick = () => { $("aiPanel").classList.toggle("open"); keyState(); };
+$("openAi").onclick = () => { $("panel").classList.remove("open"); $("aiPanel").classList.toggle("open"); keyState(); window.scrollTo(0, 0); };
 
 /* ---------- GitHub 연결 ---------- */
 const b64 = str => { const bytes = new TextEncoder().encode(str); let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin); };
@@ -835,7 +977,7 @@ function renderNotes() {
     <div class="chat" id="nchat">${chat.map((m, k) => m.role === "user" ? `<div class="msg user">${fmt(m.text)}</div>`
       : `<div class="msg ai ${m.err ? "err" : ""}">${fmt(m.text)}${!m.err && items.length ? `<div class="recs"><button class="rec" data-put="${k}">＋ 이슈 ${Math.min(state.pinTarget, items.length - 1) + 1} 요약에 붙이기</button></div>` : ""}</div>`).join("")}
       ${noteChat.busy ? `<div class="msg ai">생각하는 중…</div>` : ""}</div>
-    <div class="askrow"><textarea id="nask" placeholder="${store.get("claude_key") ? "이 날의 이슈에 대해 물어보세요" : "🤖 AI 추천 → 🔑 키 설정에서 Claude 키를 먼저 넣어주세요"}"></textarea><button class="btn primary" data-act="ask">보내기</button></div>
+    <div class="askrow"><textarea id="nask" placeholder="${hasAiKey() ? "이 날의 이슈에 대해 물어보세요" : "🤖 AI 추천 → 🔑 AI 연결 설정에서 키를 먼저 넣어주세요"}"></textarea><button class="btn primary" data-act="ask">보내기</button></div>
   </div>
   ${pastDates.length ? `<div class="box"><h3>노트 모아보기 <small>${pastDates.length}일</small></h3><div class="timeline">
     ${pastDates.map(dt => `<button class="tl ${dt === date ? "on" : ""}" data-date="${dt}"><b>${dt}</b><span>${noteItems(dt).map((x, i) => esc(x.title || `이슈 ${i + 1}`)).join(" · ")}</span></button>`).join("")}
@@ -862,21 +1004,16 @@ function noteContext(date) {
   return lines.join("\n");
 }
 async function askNote(text) {
-  const date = state.noteDate; const key = store.get("claude_key");
-  if (!key) { flash("🤖 AI 추천 → 🔑 키 설정에서 Claude 키를 먼저 넣어주세요"); $("aiPanel").classList.add("open"); keyState(); return; }
+  const date = state.noteDate;
+  if (!hasAiKey()) { flash("🤖 AI 추천 → 🔑 AI 연결 설정에서 키를 먼저 넣어주세요"); $("aiPanel").classList.add("open"); keyState(); return; }
   const chat = noteChat[date] ||= [];
   chat.push({ role: "user", text }); noteChat.busy = true; render();
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: {
-      "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true" },
-      body: JSON.stringify({ model: store.get("claude_model") || "claude-sonnet-5-5", max_tokens: 3000,
-        system: "너는 사용자의 '이슈트래킹'을 돕는 조수야. 사용자는 정치·경제 뉴스를 매일 읽고 날짜별로 주요 이슈를 정리해. 아래 자료(사용자 노트, 그날 수집된 사설 이슈, 해외 인용 기사 제목, 지표)를 근거로 짧고 정확하게 한국어로 답해. 자료에 없는 사실은 지어내지 말고, 모르면 모른다고 말해. 마크다운 표나 제목(#)은 쓰지 마.\n\n" + noteContext(date),
-        messages: chat.filter(m => !m.err).map(m => ({ role: m.role, content: m.text })) }) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(res.status === 401 ? "API 키가 올바르지 않아요" : /credit balance/i.test(data?.error?.message || "") ? "API 크레딧이 부족해요" : (data?.error?.message || res.status));
-    chat.push({ role: "assistant", text: data.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim() });
-  } catch (e) { chat.pop(); chat.push({ role: "assistant", text: "오류: " + e.message, err: true }); }
+    const out = await aiChat({ maxTokens: 3000,
+      system: "너는 사용자의 '이슈트래킹'을 돕는 조수야. 사용자는 정치·경제 뉴스를 매일 읽고 날짜별로 주요 이슈를 정리해. 아래 자료(사용자 노트, 그날 수집된 사설 이슈, 해외 인용 기사 제목, 지표)를 근거로 짧고 정확하게 한국어로 답해. 자료에 없는 사실은 지어내지 말고, 모르면 모른다고 말해. 마크다운 표나 제목(#)은 쓰지 마.\n\n" + noteContext(date),
+      messages: chat.filter(m => !m.err).map(m => ({ role: m.role, content: m.text })) });
+    chat.push({ role: "assistant", text: out.text.trim() });
+  } catch (e) { chat.pop(); chat.push({ role: "assistant", text: e.message, err: true }); }
   noteChat.busy = false; render();
 }
 $("topbox").addEventListener("input", e => {
@@ -962,6 +1099,95 @@ function renderFields() {
 $("topbox").addEventListener("click", e => {
   const a = e.target.closest("[data-goissue]"); if (!a) return;
   e.preventDefault(); state.view = "opinion"; state.sec = "전체"; state.chip = "전체"; state.issue = +a.dataset.goissue; render(); window.scrollTo(0, 0);
+});
+
+/* ---------- 오늘 한눈에 ---------- */
+const STOP_KO = new Set(("기사 테스트 기자 뉴스 단독 속보 종합 포토 사진 영상 오늘 내일 어제 지난 올해 내년 이번 지금 관련 대한 위해 위한 통해 따라 대해 이후 "
+  + "전망 발표 추진 가능 우려 논란 강조 계획 확인 결과 개최 진행 예정 상황 문제 필요 정부 국내 한국 우리 대통령실은 등 및 또 더 안 못 수 것 중 전 후 첫 새 "
+  + "만에 이상 이하 사실상 최대 최고 최저 역대 사상 직접 결국 다시 모두 이미 아직 무슨 어떻게 왜 누구 vs 시간 오전 오후 현지시간").split(" "));
+const JOSA_KO = ["으로부터", "에서는", "에게서", "으로는", "이라는", "라는", "에서", "에게", "으로", "까지", "부터", "보다", "처럼", "이나", "이며", "이고",
+  "하고", "과의", "와의", "의", "이", "가", "은", "는", "을", "를", "에", "와", "과", "도", "만", "로", "나"];
+const NO_STRIP = new Set(["김정은", "김여정", "한국은", "트럼프", "시진핑", "푸틴", "네타냐후", "젤렌스키"]);
+function titleWords(title) {
+  const out = new Set();
+  String(title).replace(/^\s*[\[【(<][^\]】)>]{1,12}[\]】)>]/, "").split(/[^가-힣A-Za-z0-9]+/).forEach(w => {
+    if (!NO_STRIP.has(w)) for (const j of JOSA_KO) if (w.endsWith(j) && w.length - j.length >= 2) { w = w.slice(0, -j.length); break; }
+    if (w.length >= 2 && !STOP_KO.has(w) && !/^\d+$/.test(w)) out.add(w);
+  });
+  return out;
+}
+function wordStops() {
+  let local = []; try { local = JSON.parse(store.get("word_stops") || "[]"); } catch {}
+  return [...new Set([...((state.cfg || {}).stopwords || []), ...local])];
+}
+function setWordStops(list) {
+  list = [...new Set(list)];
+  store.set("word_stops", JSON.stringify(list));
+  if (state.cfg) state.cfg.stopwords = list;
+}
+function renderHome() {
+  $("tabs").innerHTML = ""; $("q").parentElement.style.display = "none";
+  const arts = allArticles().filter(a => a.kws.length);
+  const myKws = Object.keys(d().keywords || {});
+  const kwSet = new Set([...myKws, ...wordStops()].map(k => k.toLowerCase()));
+  // 키워드별 기사 수
+  const kc = countBy(arts, a => a.kws);
+  const kws = myKws.filter(k => kc[k]).sort((x, y) => kc[y] - kc[x]);
+  const kmax = Math.max(1, ...kws.map(k => kc[k]));
+  // 제목 핵심어 (내 키워드는 빼고)
+  const wc = {};
+  arts.forEach(a => titleWords(a.title).forEach(w => { if (!kwSet.has(w.toLowerCase())) wc[w] = (wc[w] || 0) + 1; }));
+  const words = byCount(wc).filter(w => wc[w] >= 2).slice(0, 40);
+  const wmax = wc[words[0]] || 1;
+  const size = n => 1 + Math.min(4, Math.floor(Math.sqrt(n / wmax) * 5 - 0.001));
+  const shuffled = [...words].sort((a, b) => a.localeCompare(b, "ko"));
+  // 분야(섹션) 비중
+  const sc = countBy(arts, a => [a.section]);
+  const secs = ORDER.filter(s => sc[s]);
+  const fo = d().foreign || [], oc = countBy(fo, a => a.outlets), topO = byCount(oc).slice(0, 5);
+  const iss = ((d().issues || {}).items || []).slice(0, 3);
+  const nNotes = noteItems(d().date).length;
+  $("topbox").innerHTML = `
+    <div class="kpis">
+      <button class="kpi" data-go="news"><span>내 키워드 기사</span><b>${arts.length.toLocaleString()}</b></button>
+      <button class="kpi" data-go="foreign"><span>해외 매체 인용</span><b>${fo.length.toLocaleString()}</b></button>
+      <button class="kpi" data-go="opinion"><span>사설·칼럼</span><b>${opinionItems().length.toLocaleString()}</b></button>
+      <button class="kpi" data-go="notes"><span>내 이슈 노트</span><b>${nNotes}</b></button>
+    </div>
+    <div class="box"><h3>오늘 기사 제목에 많이 나온 말 <small>${state.dropMode ? "<b style='color:var(--accent)'>뺄 말을 누르세요</b>" : `내 키워드 기사 ${arts.length.toLocaleString()}건 기준 · 누르면 그 말이 들어간 기사로`}
+        <button class="btn sm" data-dropmode>${state.dropMode ? "완료" : "✂ 뺄 말 고르기"}</button></small></h3>
+      ${words.length ? `<div class="words">${shuffled.map(w => `<button class="word w${size(wc[w])}" data-word="${esc(w)}" title="${wc[w]}건">${state.dropMode ? "✕ " : ""}${esc(w)}<small>${wc[w]}</small></button>`).join("")}</div>`
+        : `<p class="help">기사가 모이면 여기에 보여요.</p>`}
+      ${state.dropMode || wordStops().length ? `<div class="kwlist" style="margin:10px 0 0">${wordStops().length ? `<span class="help" style="margin:0 4px 0 0">뺀 말:</span>` : ""}${wordStops().map(w => `<span class="kw">${esc(w)}<button data-undrop="${esc(w)}" title="다시 보이기">×</button></span>`).join("")}</div>
+      ${state.dropMode ? `<div class="addrow" style="margin:8px 0 0"><input id="dropInput" placeholder="직접 입력해서 빼기 (쉼표로 여러 개)"><button class="btn" data-dropadd>빼기</button></div>
+      <p class="note">뺀 말은 이 브라우저에 바로 저장되고, ⚙ 설정에서 '저장하기'를 누르면 다른 기기에도 적용돼요.</p>` : ""}` : ""}</div>
+    <div class="cols">
+      <div class="box"><h3>내 키워드별 기사 수</h3>
+        ${kws.length ? `<div class="hbars">${kws.map(k => `<button data-kw="${esc(k)}">${esc(k)}</button><div class="hbar" title="${esc(k)} ${kc[k]}건"><i style="width:${(kc[k] / kmax * 100).toFixed(1)}%"></i></div><span class="v">${kc[k].toLocaleString()}</span>`).join("")}</div>`
+          : `<p class="help">아직 기사가 없어요.</p>`}</div>
+      <div class="box"><h3>분야별 비중</h3>
+        ${secs.length ? `<div class="share">${secs.map(s => `<i style="width:${(sc[s] / arts.length * 100).toFixed(2)}%;background:${COLOR(s)}" title="${s} ${sc[s]}건 (${Math.round(sc[s] / arts.length * 100)}%)"></i>`).join("")}</div>
+          <div class="legend">${secs.map(s => `<span style="--c:${COLOR(s)}">${s}<b>${Math.round(sc[s] / arts.length * 100)}%</b></span>`).join("")}</div>` : `<p class="help">아직 기사가 없어요.</p>`}
+        <h3 style="margin-top:18px">많이 인용된 해외 매체</h3>
+        ${topO.length ? `<div class="top5">${topO.map(o => `<span>${esc(o)}<b>${oc[o]}</b></span>`).join("")}</div>` : `<p class="help">${d().foreign === undefined ? "새 수집부터 보여요." : "없음"}</p>`}
+        <h3 style="margin-top:18px">오늘 사설 이슈</h3>
+        ${iss.length ? `<ul class="mini">${iss.map((x, i) => `<li><a href="#" data-goissue="${i}">${esc(x.issue)}</a><small>${x.papers}개 신문</small></li>`).join("")}</ul>` : `<p class="help">${d().issues === undefined ? "새 수집부터 보여요." : "없음"}</p>`}
+      </div>
+    </div>`;
+}
+$("topbox").addEventListener("click", e => {
+  if (state.view !== "home") return;
+  const go = e.target.closest("[data-go]"), w = e.target.closest("[data-word]"), k = e.target.closest("[data-kw]");
+  if (e.target.closest("[data-dropmode]")) { state.dropMode = !state.dropMode; render(); return; }
+  const un = e.target.closest("[data-undrop]");
+  if (un) { setWordStops(wordStops().filter(x => x !== un.dataset.undrop)); render(); return; }
+  if (e.target.closest("[data-dropadd]")) { setWordStops([...wordStops(), ...splitList($("dropInput").value)]); render(); return; }
+  if (w && state.dropMode) { setWordStops([...wordStops(), w.dataset.word]); render(); return; }
+  if (go) { state.view = go.dataset.go; state.sec = "전체"; state.chip = "전체"; state.q = ""; }
+  else if (w) { state.view = "news"; state.sec = "전체"; state.chip = "전체"; state.q = w.dataset.word; }
+  else if (k) { state.view = "news"; state.sec = "전체"; state.chip = k.dataset.kw; state.q = ""; }
+  else return;
+  $("q").value = state.q; render(); window.scrollTo(0, 0);
 });
 
 ghState();
