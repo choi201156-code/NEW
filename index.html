@@ -47,6 +47,8 @@
   .mdel:hover { color: var(--l5); }
   .pquick { display: flex; gap: 4px; flex-wrap: wrap; margin: -2px 0 8px; } .pquick .chip { font-size: 12px; padding: 3px 8px; }
   .fpbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 14px; margin: 4px 0 6px; }
+  .kwbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 16px 0 0; }
+  .chip.zero:not(.on) { opacity: .55; }
   .pager { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 18px 0 8px; }
   .pager .btn.on { background: var(--text); color: var(--bg); border-color: var(--text); }
   .pager span { color: var(--muted); }
@@ -465,7 +467,7 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
 <script>
 const ORDER = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화", "사설", "칼럼", "오피니언", "연예", "스포츠", "기타"];
 const MAIN = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화"];
-const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["foreign", "해외 인용"], ["opinion", "사설·칼럼"], ["indicators", "경제지표"]];
+const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["opinion", "사설·칼럼"], ["foreign", "해외 인용"], ["indicators", "경제지표"]];
 const COLOR = s => getComputedStyle(document.documentElement)
   .getPropertyValue("--s-" + s.split("/")[0].trim()).trim() || "#868e96";
 // 운영자 칸: 사이트 주소 끝에 ?admin 을 붙여 열면 보임 (한 번 열면 이 브라우저에선 계속)
@@ -590,9 +592,9 @@ function setTabs(tabs, countOf) {
     `<button class="tab ${s === state.sec ? "on" : ""}" data-sec="${esc(s)}">${esc(s)}<small>${countOf(s)}</small></button>`).join("");
 }
 function setChips(label, keys, count, total, prefix = "") {
-  if (state.chip !== "전체" && !count[state.chip]) state.chip = "전체";
+  if (state.chip !== "전체" && !(state.chip in count)) state.chip = "전체";
   $("chips").innerHTML = [`<button class="chip ${state.chip === "전체" ? "on" : ""}" data-chip="전체">${label} <small>${total}</small></button>`,
-    ...keys.map(k => `<button class="chip ${k === state.chip ? "on" : ""}" data-chip="${esc(k)}">${prefix}${esc(k)} <small>${count[k]}</small></button>`)].join("");
+    ...keys.map(k => `<button class="chip ${k === state.chip ? "on" : ""} ${count[k] ? "" : "zero"}" data-chip="${esc(k)}">${prefix}${esc(k)} <small>${count[k]}</small></button>`)].join("");
 }
 function countBy(list, keysOf) {
   const c = {}; list.forEach(a => keysOf(a).forEach(k => c[k] = (c[k] || 0) + 1)); return c;
@@ -676,7 +678,9 @@ function renderNews() {
   setTabs(["전체", ...ORDER.filter(s => !OP.includes(s) && (MAIN.includes(s) || all.some(a => a.section === s)))], s => inScope(s).length);
   const inSec = inScope(state.sec);
   const count = countBy(inSec, a => a.kws);
-  setChips("모든 키워드", myAllKws().filter(k => count[k]).sort((x, y) => count[y] - count[x]), count, inSec.length, "#");
+  const allK = myAllKws(); allK.forEach(k => count[k] ||= 0);
+  setChips("모든 키워드", allK.sort((x, y) => count[y] - count[x]), count, inSec.length, "#");
+  if (state.chip !== "전체" && !count[state.chip]) { $("list").innerHTML = `<div class="empty">오늘 모은 기사 중 '<b>${esc(state.chip)}</b>'가 들어간 기사가 없어요. <a href="${naverSearch(state.chip)}" target="_blank" rel="noopener">네이버에서 찾아보기 ↗</a></div>`; return; }
   showList(searchSort(inSec.filter(a => state.chip === "전체" || a.kws.includes(state.chip))));
 }
 const d = () => state.data;
@@ -729,8 +733,24 @@ function renderOpinion() {
   }
   let inSec = inScope(state.sec);
   if (state.issue !== null && iss[state.issue]) { const ids = new Set(iss[state.issue].ids); inSec = inSec.filter(a => ids.has(a._i)); }
+  // 내 키워드가 들어간 사설·칼럼
+  const K = myAllKws();
+  const hit = a => { const t = (a.title + " " + (a.description || "")).toLowerCase(); return K.filter(k => t.includes(k.toLowerCase())); };
+  const kc = {}; K.forEach(k => kc[k] = 0); inSec.forEach(a => hit(a).forEach(k => kc[k]++));
+  if (state.opKw && !K.includes(state.opKw) && state.opKw !== "*") state.opKw = null;
+  const kwHit = inSec.filter(a => hit(a).length);
+  if (K.length) $("topbox").insertAdjacentHTML("beforeend", `<div class="kwbar"><span class="slab">내 키워드</span>
+    <button class="chip ${!state.opKw ? "on" : ""}" data-opkw="">모든 글 <small>${inSec.length}</small></button>
+    <button class="chip ${state.opKw === "*" ? "on" : ""}" data-opkw="*">내 키워드 전체 <small>${kwHit.length}</small></button>
+    ${K.map(k => `<button class="chip ${state.opKw === k ? "on" : ""} ${kc[k] ? "" : "zero"}" data-opkw="${esc(k)}">#${esc(k)} <small>${kc[k]}</small></button>`).join("")}</div>`);
+  if (state.opKw === "*") inSec = kwHit; else if (state.opKw) inSec = inSec.filter(a => hit(a).includes(state.opKw));
   const count = countBy(inSec, a => [a.press]);
   pressPicker(count, inSec.length);
+  if (state.opKw && !inSec.length) {
+    $("slots").innerHTML = ""; $("meta").textContent = ""; $("chips").innerHTML = ""; $("q").parentElement.style.display = "none";
+    $("list").innerHTML = `<div class="empty">오늘 ${state.sec === "전체" ? "사설·칼럼" : esc(state.sec)} 중 ${state.opKw === "*" ? "내 키워드" : `'<b>${esc(state.opKw)}</b>'`}가 들어간 글이 없어요.</div>`;
+    return;
+  }
   showList(searchSort(inSec.filter(a => state.chip === "전체" || a.press === state.chip)));
 }
 // 신문사 고르기: 칩을 다 늘어놓지 않고, 검색 + 가나다 사전식 목록
@@ -908,8 +928,9 @@ $("kwlist").onclick = e => { const b = e.target.closest("button"); if (b) { stat
 $("kwSave").onclick = () => saveMine();
 $("siteSave").onclick = saveKws;
 
-$("views").onclick = e => { const b = e.target.closest(".view"); if (b) { ["aiPanel", "levelPanel", "acctPanel"].forEach(id => $(id).classList.remove("open")); state.pressQ = ""; state.slot = null; state.view = b.dataset.view; state.sec = "전체"; state.chip = "전체"; state.issue = null; render(); } };
-$("topbox").onclick = e => { if (e.target.closest("[data-issueclear]")) { state.issue = null; state.chip = "전체"; render(); return; } const b = e.target.closest(".issue"); if (b) { const i = +b.dataset.issue; state.issue = state.issue === i ? null : i; state.chip = "전체"; render(); } };
+$("views").onclick = e => { const b = e.target.closest(".view"); if (b) { ["aiPanel", "levelPanel", "acctPanel"].forEach(id => $(id).classList.remove("open")); state.pressQ = ""; state.slot = null; state.opKw = null; state.view = b.dataset.view; state.sec = "전체"; state.chip = "전체"; state.issue = null; render(); } };
+$("topbox").onclick = e => { const ok = e.target.closest("[data-opkw]"); if (ok) { state.opKw = ok.dataset.opkw || null; state.chip = "전체"; render(); return; }
+  if (e.target.closest("[data-issueclear]")) { state.issue = null; state.chip = "전체"; render(); return; } const b = e.target.closest(".issue"); if (b) { const i = +b.dataset.issue; state.issue = state.issue === i ? null : i; state.chip = "전체"; render(); } };
 $("tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { state.sec = b.dataset.sec; state.chip = "전체"; render(); } };
 $("chips").onclick = e => { const b = e.target.closest(".chip"); if (b) { state.chip = b.dataset.chip; state.pressQ = ""; render(); } };
 $("q").oninput = e => { state.q = e.target.value; render(); };
