@@ -20,7 +20,11 @@
   python fetch_news.py          # 실제 수집
   python fetch_news.py --mock   # API 키 없이 가짜 데이터로 화면 테스트
 """
+import hashlib
 import html
+import importlib
+import math
+import subprocess
 import json
 import os
 import re
@@ -28,7 +32,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -178,10 +182,10 @@ def http_json(url, headers=None, body=None, timeout=30):
         return json.loads(res.read().decode("utf-8"))
 
 
-def search_recent(query, since, cid, secret):
+def search_recent(query, since, cid, secret, max_pages=10):
     """네이버 뉴스를 최신순으로 넘기다가 기준 시각보다 오래된 기사가 나오면 멈춤"""
     out, seen = [], set()
-    for start in range(1, 1001, 100):
+    for start in range(1, max_pages * 100 + 1, 100):
         params = urllib.parse.urlencode({"query": query, "display": 100, "start": start, "sort": "date"})
         data = http_json(f"{NAVER_URL}?{params}", {
             "X-NCP-APIGW-API-KEY-ID": cid, "X-NCP-APIGW-API-KEY": secret})
@@ -393,11 +397,12 @@ def issues_by_ai(items, key, model):
 - 이슈는 여러 신문이 다룬 순서대로 최대 10개. 사설에서 다룬 신문 수를 가장 중요하게 봐.
 - issue: 15자 이내의 짧은 이름 (예: "의대 정원 갈등", "기준금리 동결")
 - summary: 이 사안이 무엇인지 1~2문장, 중립적으로
+- explain: 이 사안을 처음 보는 사람을 위한 배경 설명 3~4문장 (왜 쟁점인지, 무엇이 걸려 있는지). 일반적으로 알려진 배경만 쓰고 확실하지 않은 수치는 쓰지 마.
 - stances: 사설을 쓴 신문별 논조를 한 줄씩. 제목과 요약에 드러난 내용만 근거로 하고, 추측하지 마.
 - ids: 이 이슈에 해당하는 글 번호 전부 (사설+칼럼)
 
 출력은 JSON 배열 하나만:
-[{{"issue": "...", "summary": "...", "stances": [{{"press": "조선일보", "view": "..."}}], "ids": [0, 5]}}]
+[{{"issue": "...", "summary": "...", "explain": "...", "stances": [{{"press": "조선일보", "view": "..."}}], "ids": [0, 5]}}]
 
 [사설]
 {fmt(eds)}
@@ -410,6 +415,7 @@ def issues_by_ai(items, key, model):
         ids = [int(i) for i in it.get("ids", []) if str(i).isdigit() and int(i) < len(items)]
         out.append({
             "issue": str(it.get("issue", ""))[:40], "summary": str(it.get("summary", "")),
+            "explain": str(it.get("explain", "")),
             "stances": [{"press": str(s.get("press", "")), "view": str(s.get("view", ""))}
                         for s in it.get("stances", [])][:15],
             "ids": ids, "papers": len({items[i]["press"] for i in ids}),
@@ -461,6 +467,287 @@ def issues_by_frequency(items):
         if len(out) == 10:
             break
     return out
+
+
+# ─────────────────────────────── 6. 단어 뽑기 · 이슈 랭킹 ───────────────────────────────
+#
+# 의미 있는 단어: 한국어 형태소 분석기(Kiwi)로 '명사'만 뽑음 → '먼저'(부사), '던진'(동사) 같은 말은 처음부터 안 잡힘
+# 오늘의 말: 지난 7일보다 '유난히 많이 나온' 명사만 → '지역', '책임'처럼 매일 나오는 말은 자연히 빠짐
+
+KEEP_WORDS = ["국민의힘", "더불어민주당", "조국혁신당", "개혁신당", "대통령실", "기준금리", "가상자산",
+              "부동산", "반도체", "인공지능", "김정은", "트럼프", "시진핑", "푸틴", "네타냐후", "젤렌스키"]
+GENERIC = set("""만에 보도 엄중 여사 지역 책임 문제 상황 이유 가능성 계획 관계자 오늘 내일 어제 올해 내년 이번 지난해 최근 관련 대상 결과
+방안 필요 확대 강화 추진 논란 우려 입장 발표 지적 강조 전망 예정 경우 수준 이상 이하 사실 시간 오전 오후 현지시간
+기자 뉴스 사진 영상 속보 단독 종합 포토 등 것 때 중 전 후 뒤 앞 측 씨 명 개 건 곳 만 억 조 원 일 월 년 주 날
+시대 사회 나라 미래 위기 변화 시작 과정 의미 생각 모습 이야기 사람 사람들 우리 자신 누구 무엇 하나 모두 가운데
+가지 정도 부분 내용 의견 질문 답 말 글 칼럼 사설 시론 기고 기자수첩 데스크 오피니언 논단 기사 독자 인터뷰 단신
+첫 새 최대 최고 최저 역대 사상 직접 이날 당시 현재 향후 이후 이전 동안 기간 마련 진행 개최 참석 방문 확인 제기
+해결 대응 지원 운영 시행 도입 검토 협의 논의 합의 요구 촉구 비판 반발 주장 설명 언급 공개 계획 목표 성과""".split())
+_KIWI = None
+
+
+def kiwi():
+    """Kiwi 형태소 분석기 (GitHub Actions에서는 없으면 자동 설치). 실패하면 None → 간이 방식"""
+    global _KIWI
+    if _KIWI is None:
+        _KIWI = False
+        try:
+            try:
+                from kiwipiepy import Kiwi
+            except ImportError:
+                if not os.environ.get("GITHUB_ACTIONS"):
+                    raise
+                print("형태소 분석기(Kiwi) 설치 중…")
+                subprocess.run([sys.executable, "-m", "pip", "install", "-q", "kiwipiepy"], check=False)
+                importlib.invalidate_caches()
+                from kiwipiepy import Kiwi
+            k = Kiwi()
+            for w in KEEP_WORDS:
+                try:
+                    k.add_user_word(w, "NNP")
+                except Exception:
+                    pass
+            _KIWI = k
+            print("형태소 분석기(Kiwi) 사용")
+        except Exception as e:
+            print(f"Kiwi 없이 간이 방식으로 단어를 뽑아요: {e}")
+    return _KIWI or None
+
+
+def _ok_word(w):
+    if len(w) < 2 or w in GENERIC or w in STOP:
+        return False
+    if re.fullmatch(r"[\d.,]+(일|월|년|%|명|원|개|건|세|위|차|배|조|억|만|분기|시|분)?", w):
+        return False
+    if re.fullmatch(r"[a-z]+", w):          # 소문자 영어 조각은 버림 (AI, GDP 같은 대문자 약어는 살림)
+        return False
+    return True
+
+
+_NOUN_CACHE = {}
+
+
+def nouns(text):
+    """제목 → 의미 있는 명사 목록 (붙어 있는 명사는 합침: 가상+자산 → 가상자산)"""
+    text = TAG_RE.sub("", text or "")
+    if text in _NOUN_CACHE:
+        return _NOUN_CACHE[text]
+    out = []
+    k = kiwi()
+    if k:
+        try:
+            cur, end = "", -1
+            for t in k.tokenize(text):
+                if t.tag in ("NNG", "NNP", "SL", "SH"):
+                    if cur and t.start == end:
+                        cur += t.form
+                    else:
+                        if cur:
+                            out.append(cur)
+                        cur = t.form
+                    end = t.start + t.len
+                else:
+                    if cur:
+                        out.append(cur)
+                    cur, end = "", -1
+            if cur:
+                out.append(cur)
+        except Exception:
+            out = list(tokens(text))
+    else:
+        for w in KEEP_WORDS:
+            if w in text:
+                out.append(w)
+                text = text.replace(w, " ")
+        out += [w for w in tokens(text) if not re.search(r"(던|진|한|된|할|인|는|운|런|른|던가|하며|하고|해도)$", w)]
+    res = [w for w in dict.fromkeys(out) if _ok_word(w)]
+    _NOUN_CACHE[text] = res
+    return res
+
+
+def trending_terms(today_titles, past_title_lists, top=40, min_count=3):
+    """오늘 제목에서 지난 며칠보다 '유난히 많이 나온' 명사"""
+    df = Counter()
+    for t in today_titles:
+        df.update(set(nouns(t)))
+    n = max(1, len(today_titles))
+    bg, m = Counter(), 0
+    for titles in past_title_lists:
+        for t in titles:
+            bg.update(set(nouns(t)))
+        m += len(titles)
+    rows = []
+    for w, c in df.items():
+        if c < min_count:
+            continue
+        if m:
+            ratio = ((c + 0.5) / (n + 1)) / ((bg[w] + 0.5) / (m + 1))
+            if ratio < 1.3:
+                continue
+            score = c * math.log2(ratio)
+        else:
+            ratio, score = None, c
+        rows.append({"term": w, "count": c, "ratio": None if ratio is None else round(ratio, 1), "score": round(score, 2)})
+    rows.sort(key=lambda r: r["score"], reverse=True)
+    return rows[:top]
+
+
+def cluster_titles(items, min_press=3, limit=15, common_share=0.08):
+    """같은 사안을 다룬 기사끼리 묶기 → 여러 언론사가 다룬 순서로 정렬"""
+    toks = [set(nouns(a["title"])) for a in items]
+    n = len(items)
+    df = Counter(w for T in toks for w in T)
+    common = {w for w, c in df.items() if c > max(30, n * common_share)}
+    weight = lambda w: 0.3 if w in common else 1.0
+    clusters, index = [], defaultdict(set)
+    for i in sorted(range(n), key=lambda i: items[i].get("published", "")):
+        T = toks[i]
+        if len(T) < 2:
+            continue
+        cand = set().union(*(index[w] for w in T)) if T else set()
+        best, bs = None, 0.0
+        for ci in cand:
+            c = clusters[ci]
+            sc = sum(weight(w) for w in T & c["core"])
+            if sc > bs:
+                best, bs = ci, sc
+        if best is not None and bs >= 2:
+            c = clusters[best]
+            c["members"].append(i)
+            c["cnt"].update(T)
+            need = max(1, math.ceil(len(c["members"]) * 0.4))
+            c["core"] = {w for w, k in c["cnt"].items() if k >= need} or c["core"]
+            for w in c["core"]:
+                index[w].add(best)
+        else:
+            clusters.append({"members": [i], "cnt": Counter(T), "core": set(T)})
+            for w in T:
+                index[w].add(len(clusters) - 1)
+    out = []
+    for c in clusters:
+        press = {items[i]["press"] for i in c["members"]}
+        if len(press) < min_press:
+            continue
+        terms = [w for w, _ in c["cnt"].most_common() if w not in common][:5] or [w for w, _ in c["cnt"].most_common(3)]
+        rep = max(c["members"], key=lambda i: (len(toks[i] & set(terms[:3])), items[i]["press"] in PRESS_MAP.values()))
+        out.append({"members": c["members"], "terms": terms, "press": len(press), "rep": rep})
+    out.sort(key=lambda c: (c["press"], len(c["members"])), reverse=True)
+    # 같은 사안이 둘로 나뉜 경우 합치기 (핵심어 5개 중 2개 이상 겹치면)
+    merged = []
+    for c in out:
+        tgt = next((m for m in merged if len(set(m["terms"][:5]) & set(c["terms"][:5])) >= 2), None)
+        if tgt:
+            tgt["members"] = list(dict.fromkeys(tgt["members"] + c["members"]))
+            tgt["press"] = len({items[i]["press"] for i in tgt["members"]})
+        else:
+            merged.append(c)
+    merged.sort(key=lambda c: (c["press"], len(c["members"])), reverse=True)
+    return merged[:limit]
+
+
+def issues_by_cluster(items):
+    """AI 없이 사설·칼럼 이슈 묶기"""
+    out = []
+    for c in cluster_titles(items, min_press=2, limit=10, common_share=0.15):
+        out.append({"issue": " · ".join(c["terms"][:2]), "summary": items[c["rep"]]["title"], "stances": [],
+                    "ids": c["members"], "papers": c["press"]})
+    return out
+
+
+SECTION_SEEDS = {"정치": ["대통령", "국회", "여야", "정부"], "경제": ["경제", "금리", "증시", "부동산", "기업", "수출"],
+                 "세계": ["미국", "중국", "일본", "트럼프", "외신"]}
+RANK_SECTIONS = ("정치", "경제", "세계")
+
+
+def compact(a):
+    return {"t": a["title"], "u": a["url"], "p": a["press"], "s": a["section"], "d": a["published"]}
+
+
+def fetch_pool(since, cid, secret):
+    """이슈 랭킹용으로 정치·경제·세계 기사를 넓게 모음 (제목 위주)"""
+    pool = {}
+    for sec, qs in SECTION_SEEDS.items():
+        for q in qs:
+            try:
+                arts = search_recent(q, since, cid, secret, max_pages=5)
+            except Exception as e:
+                print(f"  {q}: 실패 - {e}")
+                continue
+            for a in arts:
+                if a["section"] in RANK_SECTIONS and not opinion_kind(a["title"], a["_link"]) and not PHOTO_RE.match(a["title"]):
+                    pool[a["url"]] = compact(a)
+    return pool
+
+
+def title_hits(titles, terms, need=2):
+    need = min(need, len(terms))
+    return sum(1 for t in titles if sum(1 for w in terms if w in t) >= need)
+
+
+def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
+    items = [{"title": x["t"], "url": x["u"], "press": x["p"], "section": x["s"], "published": x["d"]}
+             for x in pool_items if x["s"] in RANK_SECTIONS]
+    fmap = {a["url"]: a.get("outlets", []) for a in foreign}
+    out = []
+    for c in cluster_titles(items, min_press=3, limit=20)[:15]:
+        mem = sorted((items[i] for i in c["members"]), key=lambda a: a["published"], reverse=True)
+        secs = Counter(a["section"] for a in mem)
+        terms = c["terms"][:4]
+        hist = [{"date": dt, "count": title_hits(titles, terms[:3])} for dt, titles in past_days]
+        oc = Counter(o for a in mem for o in fmap.get(a["url"], []))
+        seen, arts = set(), []
+        for a in mem:
+            if a["press"] in seen:
+                continue
+            seen.add(a["press"])
+            arts.append({"title": a["title"], "url": a["url"], "press": a["press"], "published": a["published"]})
+        rep = items[c["rep"]]
+        out.append({
+            "id": hashlib.md5(" ".join(sorted(terms[:3])).encode()).hexdigest()[:10],
+            "label": " · ".join(terms[:3]), "terms": terms, "section": secs.most_common(1)[0][0],
+            "press": c["press"], "count": len(mem), "title": rep["title"], "url": rep["url"],
+            "articles": arts[:12], "outlets": oc.most_common(6), "history": hist,
+            "new": bool(hist) and hist[-1]["count"] == 0, "summary": "",
+        })
+    if ai_key and out:
+        try:
+            lines = "\n".join(f'{i}. [{x["section"]}] 핵심어: {x["label"]} / 대표 제목: {x["title"]} / 다른 제목: '
+                              + " | ".join(a["title"] for a in x["articles"][1:4]) for i, x in enumerate(out))
+            res = parse_json(claude(
+                "오늘 한국 뉴스에서 여러 언론사가 함께 다룬 사안들이야. 각 사안에 대해 "
+                "label(15자 이내의 짧은 이슈 이름)과 summary(무슨 일인지 1~2문장, 중립적으로, 제목에 드러난 사실만)를 만들어줘.\n"
+                '출력은 JSON 객체 하나만: {"0": {"label": "...", "summary": "..."}, ...}\n\n' + lines,
+                ai_key, ai_model, max_tokens=4000))
+            for i, x in enumerate(out):
+                r = res.get(str(i)) or {}
+                x["label"] = str(r.get("label") or x["label"])[:30]
+                x["summary"] = str(r.get("summary") or "")
+        except Exception as e:
+            print(f"  이슈 이름 붙이기(AI) 실패: {e}")
+    return out
+
+
+def load_day(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def day_titles(day_json, pool_json=None):
+    titles = []
+    if pool_json:
+        titles += [x["t"] for x in pool_json]
+    for arr in (day_json or {}).get("keywords", {}).values():
+        titles += [a["title"] for a in arr]
+    titles += [a["title"] for a in (day_json or {}).get("foreign", [])]
+    return list(dict.fromkeys(titles))
+
+
+def merge_by_url(new, old):
+    """같은 날 앞선 수집분과 합치기 (하루 여러 번 돌 때 기사가 쌓이도록)"""
+    seen = {a["url"] for a in new}
+    return new + [a for a in (old or []) if a["url"] not in seen]
 
 
 # ─────────────────────────────── 4. 경제지표 ───────────────────────────────
@@ -517,7 +804,7 @@ def fetch_fred(key):
     for sid, group, name, unit, calc, agency, link in US_SERIES:
         try:
             q = urllib.parse.urlencode({"series_id": sid, "api_key": key, "file_type": "json",
-                                        "sort_order": "desc", "limit": 14})
+                                        "sort_order": "desc", "limit": 16})
             obs = [o for o in http_json(f"https://api.stlouisfed.org/fred/series/observations?{q}")
                    .get("observations", []) if o.get("value") not in (None, ".")]
             if len(obs) < 2:
@@ -741,13 +1028,7 @@ def main():
             op = fetch_opinion(since, keywords, cid, secret)
             result["opinion"] = op
             print(f"  사설 {sum(a['kind'] == '사설' for a in op)}건, 칼럼 {sum(a['kind'] == '칼럼' for a in op)}건")
-            issues = None
-            if ai_key and op:
-                try:
-                    issues = {"method": "ai", "items": issues_by_ai(op, ai_key, ai_model)}
-                except Exception as e:
-                    print(f"  AI 이슈 분석 실패, 단어 빈도로 대체: {e}")
-            result["issues"] = issues or {"method": "frequency", "items": issues_by_frequency(op)}
+            result["issues"] = None  # 아래에서 같은 날 앞선 수집분과 합친 뒤 계산
         except Exception as e:
             print(f"사설·칼럼: 실패 - {e}")
             result["opinion"], result["issues"] = [], {"method": "none", "items": []}
@@ -765,6 +1046,56 @@ def main():
             print(f"FRED 지표 {len(result['indicators']['us'])}개")
 
     if not mock:
+        # 5) 같은 날 앞선 수집분과 합치기 (하루 여러 번 돌아도 기사가 쌓이도록)
+        prev = load_day(DATA_DIR / f"{result['date']}.json")
+        if prev:
+            for k in keywords:
+                result["keywords"][k] = merge_by_url(result["keywords"].get(k, []), (prev.get("keywords") or {}).get(k))
+            result["foreign"] = merge_by_url(result["foreign"], prev.get("foreign"))
+            result["opinion"] = sorted(merge_by_url(result["opinion"], prev.get("opinion")),
+                                       key=lambda a: a["published"], reverse=True)
+            for c in ("kr", "us"):
+                if not result["indicators"][c]:
+                    result["indicators"][c] = (prev.get("indicators") or {}).get(c, [])
+            print("오늘 앞선 수집분과 합쳤어요")
+
+        # 6) 사설·칼럼 이슈
+        op = result["opinion"]
+        issues = None
+        if ai_key and op:
+            try:
+                issues = {"method": "ai", "items": issues_by_ai(op, ai_key, ai_model)}
+            except Exception as e:
+                print(f"  AI 이슈 분석 실패, 기사 묶기로 대체: {e}")
+        result["issues"] = issues or {"method": "cluster", "items": issues_by_cluster(op)}
+
+        # 7) 이슈 랭킹용 기사 모으기 (정치·경제·세계)
+        print("이슈 랭킹용 기사 수집")
+        pool_path = DATA_DIR / f"pool-{result['date']}.json"
+        pool = fetch_pool(since, cid, secret)
+        for arr in list(result["keywords"].values()) + [result["foreign"]]:
+            for a in arr:
+                if a["section"] in RANK_SECTIONS:
+                    pool.setdefault(a["url"], compact(a))
+        for x in (load_day(pool_path) or []):
+            pool.setdefault(x["u"], x)
+        pool_items = sorted(pool.values(), key=lambda x: x["d"], reverse=True)
+        print(f"  {len(pool_items)}건")
+
+        # 8) 지난 7일과 비교한 '오늘의 말' + 이슈 랭킹
+        past = []
+        for i in range(7, 0, -1):
+            dt = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+            dj = load_day(DATA_DIR / f"{dt}.json")
+            if dj:
+                past.append((dt, day_titles(dj, load_day(DATA_DIR / f"pool-{dt}.json"))))
+        today_titles = list(dict.fromkeys([x["t"] for x in pool_items] + day_titles(result)))
+        result["trending"] = trending_terms(today_titles, [t for _, t in past])
+        result["issue_rank"] = build_issue_rank(pool_items, result["foreign"], past, ai_key, ai_model)
+        print(f"오늘의 말 {len(result['trending'])}개, 이슈 랭킹 {len(result['issue_rank'])}개")
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        pool_path.write_text(json.dumps(pool_items, ensure_ascii=False), encoding="utf-8")
+
         for f in fields:
             if f.get("papers"):
                 print(f"논문: {f['name']}")
@@ -784,6 +1115,9 @@ def main():
             f.unlink()
         else:
             dates.append(f.stem)
+    for f in DATA_DIR.glob("pool-????-??-??.json"):
+        if f.stem[5:] < (now - timedelta(days=10)).strftime("%Y-%m-%d"):
+            f.unlink()
     (DATA_DIR / "index.json").write_text(
         json.dumps({"dates": sorted(dates, reverse=True)}, ensure_ascii=False), encoding="utf-8")
 
