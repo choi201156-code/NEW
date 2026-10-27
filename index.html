@@ -8,8 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f6f6f3; --card: #ffffff; --text: #1d1d1b; --muted: #6d6d68;
-    --line: #e4e4de; --accent: #9D2235; --chip: #ececE6;
+    --bg: #F3EFE7; --card: #ffffff; --text: #2A2826; --muted: #6d6d68;
+    --line: #e4e4de; --accent: #9D2235; --chip: #EBE6DA;
     --s-정치: #3b5bdb; --s-경제: #e8590c; --s-사회: #2b8a3e; --s-세계: #7048e8;
     --l1: #2f9e44; --l2: #1971c2; --l3: #6741d9; --l4: #e8590c; --l5: #c92a2a;
     --s-IT: #0c8599; --s-생활: #c2255c; --s-사설: #5c3d2e; --s-오피니언: #5c3d2e; --s-기타: #868e96;
@@ -35,10 +35,10 @@
   .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
   .tab { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 500;
          padding: 10px 12px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
-  .tab.on { color: var(--text); border-color: var(--accent); }
+  .tab.on { color: var(--accent); border-color: var(--accent); }
   .tab small, .chip small { font-size: 11px; font-weight: 500; margin-left: 5px; padding: 0 6px;
          border-radius: 999px; background: var(--chip); color: var(--muted); }
-  .chip.on small { background: rgba(127,127,127,.35); color: inherit; }
+  .chip.on small { background: rgba(255,255,255,.35); color: #ffffff; }
   body:not(.admin) .admin-only { display: none !important; }
   .slots { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 4px 0 8px; }
   .slots:empty { display: none; }
@@ -50,7 +50,7 @@
   .kwbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 16px 0 0; }
   .chip.zero:not(.on) { opacity: .55; }
   .pager { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; margin: 18px 0 8px; }
-  .pager .btn.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .pager .btn.on { background: var(--accent); color: #ffffff; border-color: var(--accent); }
   .pager span { color: var(--muted); }
   .bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 16px 0 8px; }
   .pp { width: 100%; display: grid; gap: 8px; }
@@ -65,7 +65,7 @@
   .pp-list { padding: 4px 0 8px 14px; }
   .chip { border: 0; background: var(--chip); color: var(--text); font: inherit; font-size: 13px;
           padding: 5px 12px; border-radius: 999px; cursor: pointer; }
-  .chip.on { background: var(--text); color: var(--bg); }
+  .chip.on { background: var(--accent); color: #ffffff; }
   .search { padding: 4px 0 12px; }
   .meta { color: var(--muted); font-size: 12px; padding-bottom: 8px; }
   .list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 40px; }
@@ -82,7 +82,7 @@
   .views { display: flex; gap: 6px; padding: 2px 0 6px; overflow-x: auto; scrollbar-width: none; }
   .view { border: 1px solid var(--line); background: var(--bg); color: var(--text); font: inherit; font-size: 14px;
           font-weight: 500; padding: 6px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
-  .view.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .view.on { background: var(--accent); color: #ffffff; border-color: var(--accent); }
   .view small { font-size: 11px; margin-left: 5px; opacity: .7; }
   .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
   .box h3 { font-size: 15px; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
