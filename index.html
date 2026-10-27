@@ -90,6 +90,17 @@
   .view.on { background: var(--accent); color: #ffffff; border-color: var(--accent); }
   .view small { font-size: 11px; margin-left: 5px; opacity: .7; }
   .box { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 16px; }
+    /* 홈 2단 레이아웃: 왼쪽=이슈 랭킹, 오른쪽=사설·칼럼 이슈 */
+  body.is-home .wrap { max-width: 1180px; }
+  .home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+  .home-main { min-width: 0; }
+  .home-side { position: sticky; top: 130px; max-height: calc(100vh - 150px); overflow-y: auto; min-width: 0; }
+  .home-side .box:first-child, .home-main .box:first-child { margin-top: 16px; }
+  @media (max-width: 960px) {
+    .home-grid { grid-template-columns: 1fr; }
+    .home-side { position: static; max-height: none; overflow: visible; }
+  }
+
   .box h3 { font-size: 15px; margin: 0 0 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .box h3 small { font-weight: 400; color: var(--muted); font-size: 12px; }
   .note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
@@ -711,6 +722,7 @@ document.addEventListener("click", e => {
 
 function render() {
   const d = state.data;
+  document.body.classList.toggle("is-home", state.view === "home");
   const n = { home: "", notes: noteItems(state.noteDate).length, fields: (state.cfg?.fields || []).length, news: allArticles().filter(a => a.kws.length && !a.kind && !["사설", "칼럼", "오피니언"].includes(a.section)).length, foreign: (d.foreign || []).length,
     opinion: opinionItems().length, indicators: ((d.indicators || {}).kr || []).length + ((d.indicators || {}).us || []).length };
   $("views").innerHTML = VIEWS.map(([v, l]) =>
@@ -2135,7 +2147,10 @@ function renderHome() {
       <p class="note">난이도는 기사에 나온 용어·수치로 추정한 값이에요.</p></div>`;
   }
 
-  $("topbox").innerHTML = opHtml + rankHtml + followHtml + recHtml;
+   $("topbox").innerHTML = `<div class="home-grid">
+    <div class="home-main">${rankHtml}${followHtml}${recHtml}</div>
+    <aside class="home-side">${opHtml}</aside>
+  </div>`;
 }
 $("topbox").addEventListener("click", e => {
   if (state.view !== "home") return;
