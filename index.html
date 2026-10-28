@@ -333,6 +333,9 @@
   }
   .modal-content h2 { margin: 0 0 12px; font-size: 18px; color: var(--text); }
   .modal-content p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.6; word-break: keep-all; }
+  .welcome-steps { text-align: left; margin: 0; padding: 0 0 0 18px; font-size: 14px; color: var(--muted); line-height: 1.6; word-break: keep-all; }
+  .welcome-steps li { margin: 6px 0; }
+  .welcome-steps b { color: var(--text); margin-right: 4px; }
   .modal-chk { display: block; text-align: center; margin-top: 14px; font-size: 12px; color: var(--muted); cursor: pointer; }
   
 /* ================= 경희대 5색 팔레트 ================= */
@@ -365,6 +368,10 @@ header h1 span { color: var(--kh-gold); }
 header .tagline { margin: 2px 0 6px; font-size: 12.5px; color: rgba(255, 255, 255, 0.85); }
 header .view.on { background: #ffffff; color: var(--kh-blue); border-color: #ffffff; }
 header .view.on small { background: color-mix(in srgb, var(--kh-blue) 12%, transparent); color: var(--kh-blue); }
+/* 핵심 기능: 이슈 노트 탭 강조 (위치는 그대로) */
+header .view[data-view="notes"] { background: var(--kh-gold); color: var(--kh-blue); border-color: var(--kh-gold); font-weight: 700; }
+header .view[data-view="notes"] small { background: rgba(13, 50, 111, 0.15); color: var(--kh-blue); opacity: 1; }
+header .view[data-view="notes"].on { background: #ffffff; color: var(--kh-blue); border: 2px solid var(--kh-gold); }
 header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
 
 .ind .chg.up, .indmini .up { color: var(--kh-red); }
@@ -385,7 +392,7 @@ header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
       <select id="date" aria-label="날짜 선택"></select>
       <button class="btn" id="acctBtn">👤 로그인</button>
     </div>
-    <p class="tagline">한 이슈를 여러 언론사 보도로 비교하며 읽는 뉴스 학습</p>
+    <p class="tagline">이슈를 끝까지 팔로우업하고 스스로 기록하는 대학생 시사 학습</p>
     <nav class="views" id="views"></nav>
     <nav class="tabs" id="tabs"></nav>
   </div>
@@ -470,7 +477,7 @@ header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
   </section>
   <section class="panel" id="panel">
     <h2 class="ph">관심 분야와 키워드 <button class="btn sm" data-close="panel">닫기 ✕</button></h2>
-    <p class="help">누구나 자기 키워드를 정할 수 있어요. 오늘 모은 기사 전체에서 내 키워드가 들어간 기사를 찾아 보여주고, 분야를 만들면 '분야별' 화면에서 그 분야의 뉴스·해외 인용·지표를 모아 봐요.</p>
+    <p class="help">전공·진로와 관련된 키워드를 정해 두면, 오늘 모은 기사 전체에서 그 키워드가 들어간 기사를 찾아 보여줘요. 분야를 만들면 '분야별' 화면에서 그 분야의 뉴스·해외 인용·지표를 모아 봐요.</p>
     <div id="fieldsEd"></div>
     <button class="btn" id="fieldAdd">＋ 분야 추가</button>
     <h3 class="sub">기타 키워드 <small>분야 없이 받아볼 단어</small></h3>
@@ -558,11 +565,15 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
 </main>
 <div id="welcomePopup" class="modal-overlay" hidden>
   <div class="modal-content">
-    <h2>내 수준에 맞는 뉴스 보기 📰</h2>
-    <p>10문제로 나의 시사 상식 레벨을 확인하고,<br>나에게 딱 맞는 난이도의 기사를 추천받아보세요!</p>
+    <h2>이슈를 끝까지 따라가는 대학생 시사 노트</h2>
+    <ol class="welcome-steps">
+      <li><b>팔로우</b> 오늘의 이슈 랭킹에서 관심 이슈를 ⭐ 팔로우하면, 매일 나오는 후속 보도가 모여요.</li>
+      <li><b>기록</b> 기사를 📌 이슈 노트에 담고, 내 해석과 질문을 직접 적어요.</li>
+      <li><b>활용</b> 쌓인 노트는 전공 수업 질문, 스터디 토론, 면접 준비 자료가 돼요.</li>
+    </ol>
     <div class="ai-key" style="justify-content: center; margin-top: 18px;">
-      <button class="btn primary" id="popupStartBtn">바로 레벨테스트 하기</button>
-      <button class="btn" id="popupCloseBtn">나중에 할게요</button>
+      <button class="btn primary" id="popupCloseBtn">오늘의 이슈 보기</button>
+      <button class="btn" id="popupStartBtn">분야별 배경지식 설정</button>
     </div>
     <label class="modal-chk">
       <input type="checkbox" id="popupNeverShow"> 오늘 하루 다시 보지 않기
@@ -1546,11 +1557,11 @@ $("acctSignup").onclick = () => acctAction("up");
 /* ---------- 레벨테스트 ---------- */
 const LEVEL_AREAS = ["정치", "경제", "사회", "세계", "IT/과학"];
 const LEVEL_DESC = {
-  1: "입문 — 처음 듣는 용어가 많아요. 쉬운 말과 비유로 설명해요.",
-  2: "기초 — 기본 용어는 알아요. 핵심 용어만 짧게 풀어줘요.",
+  1: "교양 — 이 분야 기사를 이제 막 따라가기 시작했어요. 배경과 핵심 용어부터 짚어줘요.",
+  2: "기초 — 주요 용어와 흐름은 알아요. 핵심 용어만 짧게 풀어줘요.",
   3: "중급 — 제도와 맥락을 이해해요. 배경과 쟁점 중심으로요.",
-  4: "심화 — 수치와 정책 효과까지 따져요. 데이터와 인과 중심으로요.",
-  5: "전문 — 전문가 수준이에요. 간결하게, 세부 쟁점과 반론까지요.",
+  4: "심화 — 전공 수업 수준으로 따져요. 수치·정책 효과와 인과 중심으로요.",
+  5: "전공 — 전공자·현업 수준이에요. 간결하게, 세부 쟁점과 반론까지요.",
 };
 // 문항 은행: 영역마다 LEVEL 1~5 × 4문제 = 20문제, 총 100문제 (정답은 항상 첫 번째 보기, 화면에선 섞어서 보여줌)
 const LEVEL_Q = {
@@ -2166,11 +2177,11 @@ function renderHome() {
   if (follows.length && poolCache.date !== dd.date) loadPool();
   const followHtml = follows.length ? `<div class="box"><h3>팔로우 중인 이슈 <small>오늘 나온 후속 보도</small></h3>
     ${follows.map(f => { const m = followMatches(f); return `<div class="fl"><div class="fl-h"><b>${esc(f.label)}</b><small>${esc(f.since)}부터 · 오늘 ${m.length}건</small><button class="btn sm" data-unfollow="${f.id}">그만 보기</button></div>
-      ${m.length ? `<ul class="mini">${m.slice(0, 3).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small></li>`).join("")}</ul>` : `<p class="help" style="margin:4px 0 0">오늘은 후속 보도가 없어요.</p>`}</div>`; }).join("")}</div>` : "";
+      ${m.length ? `<ul class="mini">${m.slice(0, 3).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small></li>`).join("")}</ul>` : `<p class="help" style="margin:4px 0 0">오늘은 후속 보도가 없어요.</p>`}</div>`; }).join("")}</div>` : `<div class="box"><h3>팔로우 중인 이슈</h3><p class="help">위 랭킹에서 이슈를 누르고 ⭐ 이 이슈 팔로우를 눌러 보세요. 그 이슈의 후속 보도가 매일 여기에 모여서, 사건이 어떻게 흘러가는지 계속 따라갈 수 있어요.</p></div>`;
 
   // ④ 내 수준 맞춤 기사
   let recHtml;
-  if (!lv) recHtml = `<div class="box lvcta"><h3>내 수준에 맞는 기사 추천</h3><p class="help">내 수준을 고르면 바로 맞춤 기사가 나와요. 기사 추천과 AI 설명 난이도가 이 레벨에 맞춰져요. 나중에 영역별로 바꿀 수 있어요.</p>
+  if (!lv) recHtml = `<div class="box lvcta"><h3>분야별 배경지식 맞춤 기사</h3><p class="help">분야마다 배경지식 수준을 정하면, 그 수준에 맞는 기사와 해설 깊이로 이어서 공부할 수 있어요. 나중에 영역별로 바꿀 수 있어요.</p>
     ${lvPick()}
     <p class="help" style="margin-top:10px">잘 모르겠다면 <button class="btn sm" data-act="leveltest">📊 레벨테스트</button> 10문제로 알아볼 수도 있어요.</p></div>`;
   else {
@@ -2179,7 +2190,7 @@ function renderHome() {
     const fit = pool.filter(a => a.lv === my || a.lv === my - 1).slice(0, 4), up = pool.filter(a => a.lv === my + 1).slice(0, 2);
     const row = a => `<li><span class="lv lv${a.lv}">L${a.lv}</span><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small><button class="pin" data-url="${esc(a.url)}" title="이슈 노트에 담기">📌</button></li>`;
     pool.forEach(a => cardIndex.set(a.url, a));
-    recHtml = `<div class="box"><h3>내 수준 맞춤 기사 <small>종합 LEVEL ${overallLevel()} · <a href="#" data-act="leveltest">레벨 보기·조정</a></small></h3>
+    recHtml = `<div class="box"><h3>배경지식 맞춤 기사 <small>종합 LEVEL ${overallLevel()} · <a href="#" data-act="leveltest">레벨 보기·조정</a></small></h3>
       <div class="chipsrow">${LEVEL_AREAS.map(a => `<button class="chip ${a === area ? "on" : ""}" data-rec="${a}">${a} <small>L${lv.areas[a]}</small></button>`).join("")}</div>
       <div class="lvadjrow">${esc(area)} 레벨 <button class="btn sm" data-recadj="${esc(area)}:-1" ${my <= 1 ? "disabled" : ""} aria-label="더 쉽게">− 쉽게</button> <b>L${my}</b> <button class="btn sm" data-recadj="${esc(area)}:1" ${my >= 5 ? "disabled" : ""} aria-label="더 어렵게">어렵게 +</button></div>
       ${fit.length || up.length ? `<ul class="mini recs2">${fit.map(row).join("")}</ul>${up.length ? `<h4>한 단계 도전</h4><ul class="mini recs2">${up.map(row).join("")}</ul>` : ""}`
