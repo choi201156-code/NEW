@@ -489,6 +489,11 @@ header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
 .ind .chg.down, .indmini .down { color: var(--kh-blue); }
 .msg.err { color: var(--kh-red); border-color: color-mix(in srgb, var(--kh-red) 35%, #fff); }
 :focus-visible { outline: 2px solid var(--kh-gold); outline-offset: 2px; }
+  /* 분야·키워드 설정: 분야별 화면 맨 아래 */
+.kwbar { margin: 20px 0 0; text-align: center; }
+.kwbar[hidden] { display: none; }
+body:not(.is-fields) #panel { display: none !important; }
+
 
 </style>
 </head>
@@ -674,6 +679,7 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
   <div class="slots" id="slots"></div>
   <div class="meta" id="meta"></div>
   <div class="list" id="list"></div>
+   <div id="kwBar" class="kwbar" hidden></div>
 </main>
 <div id="welcomePopup" class="modal-overlay" hidden>
   <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="wmTitle">
@@ -922,6 +928,8 @@ function issueThumb(x) {
 function render() {
   const d = state.data;
   document.body.classList.toggle("is-home", state.view === "home");
+  $("kwBar").hidden = state.view !== "fields";
+  document.body.classList.toggle("is-fields", state.view === "fields");
   const n = { home: "", notes: noteItems(state.noteDate).length, fields: (state.cfg?.fields || []).length, news: allArticles().filter(a => a.kws.length && !a.kind && !["사설", "칼럼", "오피니언"].includes(a.section)).length, foreign: (d.foreign || []).length,
     opinion: opinionItems().length, indicators: ((d.indicators || {}).kr || []).length + ((d.indicators || {}).us || []).length };
   $("views").innerHTML = VIEWS.map(([v, l]) =>
@@ -1178,13 +1186,18 @@ async function saveKws() {
   if (r) window.open(`https://github.com/${r.owner}/${r.repo}/edit/main/keywords.json`, "_blank");
 }
 
+// 설정 버튼과 패널을 분야별 화면 맨 아래로 옮김 (목록 → 버튼 → 패널 순서)
+$("kwBar").appendChild($("openSettings"));
+$("kwBar").after($("panel"));
+
 $("openSettings").onclick = () => {
   const open = !(state.view === "fields" && $("panel").classList.contains("open"));
   $("aiPanel").classList.remove("open");
   if (state.view !== "fields") { state.view = "fields"; state.sec = "전체"; state.chip = "전체"; render(); }
   $("panel").classList.toggle("open", open);
-  window.scrollTo(0, 0);
+  if (open) setTimeout(() => $("panel").scrollIntoView({ behavior: "smooth", block: "start" }), 50);
 };
+
 document.addEventListener("click", e => { const b = e.target.closest("[data-close]"); if (b) $(b.dataset.close).classList.remove("open"); });
 document.addEventListener("click", e => {
   if (e.target.closest("[data-act=gonotes]")) { e.preventDefault(); state.view = "notes"; render(); window.scrollTo(0, 0); return; }
@@ -2083,8 +2096,9 @@ function renderFields() {
   const fs = (state.cfg?.fields || []).filter(f => f.name);
   if (!fs.length) {
     $("tabs").innerHTML = ""; $("q").parentElement.style.display = "none";
-    $("topbox").innerHTML = `<div class="box"><h3>관심 분야 만들기</h3><p class="help">위 <b>⚙ 분야·키워드 설정</b>에서 분야(예: 거시경제, 과학기술)와 키워드를 넣고 저장하면, 분야마다 오늘의 뉴스·가장 많이 인용된 해외 매체·관련 지표·논문을 모아 보여줘요.</p>
-      <button class="btn primary" onclick="$('panel').classList.add('open');window.scrollTo(0,0)">분야 만들러 가기</button></div>`;
+    $("topbox").innerHTML = `<div class="box"><h3>관심 분야 만들기</h3><p class="help">아 <b>⚙ 분야·키워드 설정</b>에서 분야(예: 거시경제, 과학기술)와 키워드를 넣고 저장하면, 분야마다 오늘의 뉴스·가장 많이 인용된 해외 매체·관련 지표·논문을 모아 보여줘요.</p>
+      <button class="btn primary" onclick="$('panel').classList.add('open');$('panel').scrollIntoView({behavior:'smooth',block:'start'})"
+>분야 만들러 가기</button></div>`;
     return;
   }
   if (!fs.some(f => f.name === state.sec)) state.sec = fs[0].name;
