@@ -362,6 +362,7 @@
 header { background: var(--kh-blue); border-bottom: 3px solid var(--kh-gold); }
 header h1 { color: #ffffff; }
 header h1 span { color: var(--kh-gold); }
+header .tagline { margin: 2px 0 6px; font-size: 12.5px; color: rgba(255, 255, 255, 0.85); }
 header .view.on { background: #ffffff; color: var(--kh-blue); border-color: #ffffff; }
 header .view.on small { background: color-mix(in srgb, var(--kh-blue) 12%, transparent); color: var(--kh-blue); }
 header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
@@ -384,6 +385,7 @@ header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
       <select id="date" aria-label="날짜 선택"></select>
       <button class="btn" id="acctBtn">👤 로그인</button>
     </div>
+    <p class="tagline">한 이슈를 여러 언론사 보도로 비교하며 읽는 뉴스 학습</p>
     <nav class="views" id="views"></nav>
     <nav class="tabs" id="tabs"></nav>
   </div>
@@ -1813,6 +1815,7 @@ function renderNotes() {
   const lv = overallLevel();
   $("topbox").innerHTML = `
   <div class="box"><h3>${esc(date)} 이슈 노트 <small><span id="syncState">${esc(acct.label())}</span>${items.length ? ` · <button class="btn sm" data-act="delday">🗑 이 날 노트 지우기</button>` : ""}</small></h3>
+    <p class="help note-private" style="font-size:13px;margin:4px 0 10px;color:var(--muted, #717171)">나만 볼 수 있는 노트예요. ${acct.user ? "내 계정에만 저장되고" : "이 브라우저에만 저장되고"} 다른 사람에게는 공개되지 않아요.</p>
     ${items.map((it, i) => { const key = `${date}:${i}`, chat = it.chat || [], open = openChats.has(key);
       return `<div class="nissue ${i === state.pinTarget && isDataDay ? "target" : ""}" data-i="${i}">
       <div class="nhead"><span class="rank">이슈 ${i + 1}</span>
@@ -2154,7 +2157,7 @@ function renderHome() {
         </div></div>` : ""}
     </div>`;
   };
-  const rankHtml = `<div class="box"><h3>오늘의 이슈 랭킹 <small>정치·경제·세계 · 여러 언론사가 함께 다룬 순서</small></h3>
+  const rankHtml = `<div class="box"><h3>오늘의 이슈 랭킹 <small>정치·경제·세계 · 여러 언론사가 함께 다룬 순서${dd.generated_at ? ` · ${new Date(dd.generated_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })} 업데이트` : ""}</small></h3>
     ${rk.length ? `<div class="chipsrow">${["전체", "정치", "경제", "세계"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
       <div class="ranks">${rlist.map(rankRow).join("")}</div><p class="note">이슈를 누르면 팔로우업(언론사별 보도·보도량 추이·해외 인용·관련 지표·AI 설명)이 열려요.</p>`
       : `<p class="help">${dd.issue_rank === undefined ? "새 수집부터 보여요." : "오늘은 여러 언론사가 함께 다룬 이슈가 아직 없어요."}</p>`}</div>`;
