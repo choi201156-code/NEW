@@ -313,7 +313,7 @@
   
   header .view { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); border-color: transparent; }
   header .view.on { background: #ffffff; color: var(--accent); border-color: #ffffff; }
-  header .view small { background: rgba(0, 0, 0, 0.2); color: #ffffff; }
+header .view small { background: none; color: #ffffff; padding: 0; }
   header .view.on small { background: rgba(157, 34, 53, 0.1); color: var(--accent); }
   
   header .tab { color: rgba(255, 255, 255, 0.7); }
@@ -367,7 +367,7 @@ header h1 { color: #ffffff; }
 header h1 span { color: var(--kh-gold); }
 header .tagline { margin: 2px 0 6px; font-size: 12.5px; color: rgba(255, 255, 255, 0.85); }
 header .view.on { background: #ffffff; color: var(--kh-blue); border-color: #ffffff; }
-header .view.on small { background: color-mix(in srgb, var(--kh-blue) 12%, transparent); color: var(--kh-blue); }
+header .view.on small { background: none; color: var(--kh-blue); padding: 0; }
 
 /* ===== 첫 화면 이슈노트 배너 ===== */
 .hero { margin-top: 16px; border-radius: 18px; overflow: hidden; position: relative; padding-bottom: 44px !important;
@@ -466,7 +466,7 @@ header .help-btn { width: 34px; padding-left: 0; padding-right: 0; font-weight: 
 .tour-foot .tour-next { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 /* 핵심 기능: 이슈 노트 탭 강조 (위치는 그대로) */
 header .view[data-view="notes"] { background: var(--kh-gold); color: var(--kh-blue); border-color: var(--kh-gold); font-weight: 700; }
-header .view[data-view="notes"] small { background: rgba(13, 50, 111, 0.15); color: var(--kh-blue); opacity: 1; }
+header .view[data-view="notes"] small { background: none; color: var(--kh-blue); opacity: 1; padding: 0; }
 header .view[data-view="notes"].on { background: #ffffff; color: var(--kh-blue); border: 2px solid var(--kh-gold); }
 header .view[data-view="notes"] { display: inline-flex; align-items: center; }
 header .view[data-view="notes"]::before { content: ""; width: 20px; height: 20px; margin: -2px 5px -2px -4px; flex: none;
@@ -702,7 +702,7 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
 <script>
 const ORDER = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화", "사설", "칼럼", "오피니언", "연예", "스포츠", "기타"];
 const MAIN = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화"];
-const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트 💡"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["opinion", "사설·칼럼"], ["foreign", "해외 인용"], ["indicators", "경제지표"]];
+const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["opinion", "사설·칼럼"], ["foreign", "해외 인용"], ["indicators", "경제지표"]];
 const COLOR = s => getComputedStyle(document.documentElement)
   .getPropertyValue("--s-" + s.split("/")[0].trim()).trim() || "#717171";
 // 운영자 칸: 사이트 주소 끝에 ?admin 을 붙여 열면 보임 (한 번 열면 이 브라우저에선 계속)
