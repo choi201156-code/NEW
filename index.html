@@ -521,6 +521,14 @@ body:not(.is-fields) #panel { display: none !important; }
 #openSettings:hover { background: color-mix(in srgb, var(--kh-red) 85%, #000); }
 
 
+/* 이슈 노트: 모아보기 오른쪽 고정 */
+.home-side .timeline { gap: 2px; }
+.home-side .tl { flex-direction: column; gap: 2px; padding: 8px 6px; border-bottom: 1px solid var(--line); width: 100%; }
+.home-side .tl:last-child { border-bottom: 0; }
+.home-side .tl b { min-width: 0; font-size: 14px; }
+.home-side .tl span { font-size: 12px; white-space: normal; }
+.home-side .tl:hover { background: var(--chip); }
+.home-side .tl.on { background: color-mix(in srgb, var(--kh-red) 8%, #fff); }
 
 </style>
 </head>
@@ -954,7 +962,7 @@ function issueThumb(x) {
 }
 function render() {
   const d = state.data;
-  document.body.classList.toggle("is-home", state.view === "home");
+  document.body.classList.toggle("is-home", state.view === "home" || state.view === "notes");
   $("kwBar").hidden = state.view !== "fields";
   document.body.classList.toggle("is-fields", state.view === "fields");
   const n = { home: "", notes: noteItems(state.noteDate).length, fields: (state.cfg?.fields || []).length, news: allArticles().filter(a => a.kws.length && !a.kind && !["사설", "칼럼", "오피니언"].includes(a.section)).length, foreign: (d.foreign || []).length,
@@ -2020,7 +2028,7 @@ function renderNotes() {
   const isDataDay = date === state.data.date;
   const lv = overallLevel();
   $("topbox").innerHTML = `
-  <div class="box"><h3>${esc(date)} 이슈 노트 <small><span id="syncState">${esc(acct.label())}</span>${items.length ? ` · <button class="btn sm" data-act="delday">🗑 이 날 노트 지우기</button>` : ""}</small></h3>
+  <div class="home-grid"><div class="home-main"><div class="box"><h3>${esc(date)} 이슈 노트 <small><span id="syncState">${esc(acct.label())}</span>${items.length ? ` · <button class="btn sm" data-act="delday">🗑 이 날 노트 지우기</button>` : ""}</small></h3>
     <p class="help note-private" style="font-size:13px;margin:4px 0 10px;color:var(--muted, #717171)">나만 볼 수 있는 노트예요. ${acct.user ? "내 계정에만 저장되고" : "이 브라우저에만 저장되고"} 다른 사람에게는 공개되지 않아요.</p>
     ${items.map((it, i) => { const key = `${date}:${i}`, chat = it.chat || [], open = openChats.has(key);
       return `<div class="nissue ${i === state.pinTarget && isDataDay ? "target" : ""}" data-i="${i}">
@@ -2046,9 +2054,9 @@ function renderNotes() {
     <button class="btn" data-act="add">＋ 이슈 추가</button>
     <p class="note">${isDataDay ? "다른 화면의 기사 카드에서 📌를 누르면 '담을 곳'으로 고른 이슈에 기사가 붙어요. 쓰는 내용과 AI 대화는 자동 저장돼요." : "지난 날짜 노트예요."}</p>
   </div>
-  ${pastDates.length ? `<div class="box"><h3>노트 모아보기 <small>${pastDates.length}일</small></h3><div class="timeline">
+  </div><aside class="home-side">${pastDates.length ? `<div class="box"><h3>노트 모아보기 <small>${pastDates.length}일</small></h3><div class="timeline">
     ${pastDates.map(dt => `<button class="tl ${dt === date ? "on" : ""}" data-date="${dt}"><b>${dt}</b><span>${noteItems(dt).map((x, i) => esc(x.title || `이슈 ${i + 1}`)).join(" · ")}</span></button>`).join("")}
-  </div></div>` : ""}`;
+  </div></div>` : ""}</aside></div>`;
   document.querySelectorAll(".ichat .chat").forEach(el => el.scrollTop = el.scrollHeight);
 }
 
