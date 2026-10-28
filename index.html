@@ -2493,7 +2493,7 @@ function renderHome() {
     const inds = ind.filter(t => x.terms.some(w => t.name.includes(w))).slice(0, 4);
     return `<div class="rk ${open ? "open" : ""}">
       <button class="rk-h" data-rk="${x.id}"><span class="rank">${i + 1}</span>${issueThumb(x)}
-        <span class="rk-t"><b>${esc(x.label)}</b><small>${esc(x.summary || x.title)}</small></span>
+        <span class="rk-t"><b>${esc(x.label)}</b></span>
         <span class="sec" style="background:${COLOR(x.section)}">${x.section}</span>
         <span class="n">${x.press}개 언론사${x.new ? ` <em class="new">NEW</em>` : ""}${fset.has(x.id) ? " ⭐" : ""}</span></button>
       ${open ? `<div class="rk-b">
