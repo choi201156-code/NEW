@@ -767,7 +767,7 @@ def cluster_titles(items, min_press=3, limit=15, common_share=0.08):
     # 같은 사안이 둘로 나뉜 경우 합치기 (핵심어 5개 중 2개 이상 겹치면)
     merged = []
     for c in out:
-        tgt = next((m for m in merged if len(set(m["terms"][:5]) & set(c["terms"][:5])) >= 2), None)
+        tgt = next((m for m in merged if len(set(m["terms"][:5]) & set(c["terms"][:5])) >= 3), None)
         if tgt:
             tgt["members"] = list(dict.fromkeys(tgt["members"] + c["members"]))
             tgt["press"] = len({items[i]["press"] for i in tgt["members"]})
