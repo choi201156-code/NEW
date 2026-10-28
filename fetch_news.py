@@ -927,10 +927,38 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
 PHOTO_CACHE = DATA_DIR / "photo-cache.json"
 
 
-def add_issue_photos(rank, pexels_key, ai_key, ai_model):
-    """이슈 랭킹마다 썸네일 사진 붙이기: ChatKHU가 영어 검색어를 만들고 → Pexels(무료 사진)에서 찾음.
+UTM = "utm_source=issue_tracking&utm_medium=referral"
+
+
+def photo_search(query, locale_ko=False):
+    """무료 사진 검색 → [{pid, src, by, by_url, page, site, alt, dl}] (Unsplash 키가 있으면 Unsplash, 없으면 Pexels)"""
+    uk, pk = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip(), os.environ.get("PEXELS_API_KEY", "").strip()
+    if uk:
+        params = {"query": query, "per_page": 8, "orientation": "landscape", "content_filter": "high"}
+        if locale_ko:
+            params["lang"] = "ko"
+        data = http_json("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(params),
+                         {"Authorization": f"Client-ID {uk}", "Accept-Version": "v1", "User-Agent": "issue-tracking"}, timeout=15)
+        return [{"pid": "u" + p["id"], "src": p["urls"].get("small") or p["urls"].get("thumb"),
+                 "by": p.get("user", {}).get("name", ""), "by_url": p.get("user", {}).get("links", {}).get("html", "") + "?" + UTM,
+                 "page": "https://unsplash.com/?" + UTM, "site": "Unsplash", "alt": p.get("alt_description") or "",
+                 "dl": p.get("links", {}).get("download_location", "")} for p in data.get("results", [])]
+    if pk:
+        params = {"query": query, "per_page": 8, "orientation": "landscape"}
+        if locale_ko:
+            params["locale"] = "ko-KR"
+        data = http_json("https://api.pexels.com/v1/search?" + urllib.parse.urlencode(params),
+                         {"Authorization": pk, "User-Agent": "issue-tracking"}, timeout=15)
+        return [{"pid": "p" + str(p["id"]), "src": p["src"].get("medium") or p["src"].get("small"),
+                 "by": p.get("photographer", ""), "by_url": p.get("photographer_url", ""), "page": p.get("url", ""),
+                 "site": "Pexels", "alt": p.get("alt", ""), "dl": ""} for p in data.get("photos", [])]
+    return None
+
+
+def add_issue_photos(rank, ai_key, ai_model):
+    """이슈 랭킹마다 썸네일 사진 붙이기: ChatKHU가 영어 검색어를 만들고 → 무료 사진 사이트(Unsplash/Pexels)에서 찾음.
     같은 이슈(id)는 저장해 둔 사진을 다시 씀. 키가 없거나 실패하면 사진 없이 둠(사이트는 아이콘 썸네일로 대체)."""
-    if not pexels_key or not rank:
+    if not rank or not (os.environ.get("UNSPLASH_ACCESS_KEY", "").strip() or os.environ.get("PEXELS_API_KEY", "").strip()):
         return
     try:
         cache = json.loads(PHOTO_CACHE.read_text(encoding="utf-8"))
@@ -941,7 +969,7 @@ def add_issue_photos(rank, pexels_key, ai_key, ai_model):
     for x in rank:
         c = cache.get(x["id"])
         if c and c.get("pid") not in used:
-            x["photo"] = {k: c[k] for k in ("src", "by", "by_url", "page", "alt") if k in c}
+            x["photo"] = {k: c[k] for k in ("src", "by", "by_url", "page", "site", "alt") if k in c}
             used.add(c.get("pid"))
         else:
             need.append(x)
@@ -962,25 +990,28 @@ def add_issue_photos(rank, pexels_key, ai_key, ai_model):
         except Exception as e:
             print(f"  사진 검색어(AI) 실패: {e}")
             AI.setdefault("errors", []).append(f"사진 검색어 만들기 실패: {str(e)[:150]}")
-    # 2) Pexels에서 찾기
+    # 2) 사진 사이트에서 찾기
     for i, x in enumerate(need):
         q = queries.get(i)
-        params = {"query": q, "per_page": 8, "orientation": "landscape"} if q else \
-                 {"query": " ".join(x.get("terms", [])[:2]) or x["label"], "per_page": 8, "orientation": "landscape", "locale": "ko-KR"}
+        query = q or " ".join(x.get("terms", [])[:2]) or x["label"]
         try:
-            data = http_json("https://api.pexels.com/v1/search?" + urllib.parse.urlencode(params),
-                             {"Authorization": pexels_key, "User-Agent": "issue-tracking"}, timeout=15)
+            photos = photo_search(query, locale_ko=not q) or []
         except Exception as e:
             print(f"  사진 찾기 실패({x['label']}): {e}")
             continue
-        ph = next((p for p in data.get("photos", []) if p.get("id") not in used), None)
+        ph = next((p for p in photos if p["pid"] not in used and p.get("src")), None)
         if not ph:
             continue
-        used.add(ph["id"])
-        info = {"src": ph["src"].get("medium") or ph["src"].get("small"), "by": ph.get("photographer", ""),
-                "by_url": ph.get("photographer_url", ""), "page": ph.get("url", ""), "alt": ph.get("alt", "") or (q or "")}
+        used.add(ph["pid"])
+        if ph.get("dl"):  # Unsplash 규칙: 사진을 쓰면 다운로드 기록을 남김
+            try:
+                http_json(ph["dl"], {"Authorization": f"Client-ID {os.environ.get('UNSPLASH_ACCESS_KEY', '').strip()}", "Accept-Version": "v1"}, timeout=10)
+            except Exception:
+                pass
+        info = {k: ph[k] for k in ("src", "by", "by_url", "page", "site", "alt")}
+        info["alt"] = info["alt"] or query
         x["photo"] = info
-        cache[x["id"]] = {**info, "pid": ph["id"], "q": q or params["query"]}
+        cache[x["id"]] = {**info, "pid": ph["pid"], "q": query}
         time.sleep(0.2)
     # 최근 300개만 보관
     if len(cache) > 300:
@@ -1405,7 +1436,7 @@ def main():
         today_titles = list(dict.fromkeys([x["t"] for x in pool_items] + day_titles(result)))
         result["trending"] = trending_terms(today_titles, [t for _, t in past])
         result["issue_rank"] = build_issue_rank(pool_items, result["foreign"], past, ai_key, ai_model)
-        add_issue_photos(result["issue_rank"], os.environ.get("PEXELS_API_KEY", "").strip(), ai_key, ai_model)
+        add_issue_photos(result["issue_rank"], ai_key, ai_model)
 
         # 9) 사설 이슈 (구체적인 사안만, 오늘 기사 랭킹과 연결)
         op = result["opinion"]
