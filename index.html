@@ -489,10 +489,16 @@ header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
 .ind .chg.down, .indmini .down { color: var(--kh-blue); }
 .msg.err { color: var(--kh-red); border-color: color-mix(in srgb, var(--kh-red) 35%, #fff); }
 :focus-visible { outline: 2px solid var(--kh-gold); outline-offset: 2px; }
-  /* 분야·키워드 설정: 분야별 화면 맨 아래 */
-.kwbar { margin: 20px 0 0; text-align: center; }
+  /* 분야·키워드 설정: 분야별 화면 맨 위, 빨간 버튼 */
+.kwbar { margin: 14px 0 0; text-align: right; }
 .kwbar[hidden] { display: none; }
 body:not(.is-fields) #panel { display: none !important; }
+#openSettings {
+  background: var(--kh-red); color: #ffffff; border: 1px solid var(--kh-red);
+  font-weight: 700; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+}
+#openSettings:hover { background: color-mix(in srgb, var(--kh-red) 85%, #000); }
+
 
 
 </style>
@@ -673,13 +679,13 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
     </div>
     <div id="acctIn" hidden><p><b id="acctWho"></b> 로그인됨</p><button class="btn" id="acctOut">로그아웃</button></div>
   </section>
+ <div id="kwBar" class="kwbar" hidden></div>
   <div id="topbox"></div>
   <div class="bar" id="chips"></div>
   <div class="search"><input id="q" type="search" placeholder="기사 제목·내용 검색"></div>
   <div class="slots" id="slots"></div>
   <div class="meta" id="meta"></div>
   <div class="list" id="list"></div>
-   <div id="kwBar" class="kwbar" hidden></div>
 </main>
 <div id="welcomePopup" class="modal-overlay" hidden>
   <div class="welcome-modal" role="dialog" aria-modal="true" aria-labelledby="wmTitle">
