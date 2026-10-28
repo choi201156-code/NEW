@@ -992,15 +992,25 @@ def add_issue_photos(rank, ai_key, ai_model):
             print(f"  사진 검색어(AI) 실패: {e}")
             AI.setdefault("errors", []).append(f"사진 검색어 만들기 실패: {str(e)[:150]}")
     # 2) 사진 사이트에서 찾기
+    FALLBACK = {"정치": "government building", "경제": "business finance", "세계": "world map globe", "사회": "city street"}
     for i, x in enumerate(need):
         q = queries.get(i)
-        query = q or " ".join(x.get("terms", [])[:2]) or x["label"]
-        try:
-            photos = photo_search(query, locale_ko=not q) or []
-        except Exception as e:
-            print(f"  사진 찾기 실패({x['label']}): {e}")
-            continue
-        ph = next((p for p in photos if p["pid"] not in used and p.get("src")), None)
+        # 검색어 후보: AI 검색어 → 한국어 핵심어 → 분야 대표 사진 (앞에서 못 찾으면 다음 후보로)
+        tries = [(q, False)] if q else []
+        tries.append((" ".join(x.get("terms", [])[:2]) or x["label"], True))
+        tries.append((FALLBACK.get(x.get("section"), "newspaper"), False))
+        ph, query = None, ""
+        for query, ko in tries:
+            try:
+                photos = photo_search(query, locale_ko=ko) or []
+            except Exception as e:
+                print(f"  사진 찾기 실패({x['label']} / {query}): {e}")
+                continue
+            ph = next((p for p in photos if p["pid"] not in used and p.get("src")), None)
+            if ph:
+                break
+            print(f"  사진 없음({x['label']} / {query}) → 다음 검색어")
+            time.sleep(0.2)
         if not ph:
             continue
         used.add(ph["pid"])

@@ -231,6 +231,20 @@
   .rk-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
   .rk-tags span { font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); color: var(--text); }
   .rk-more { margin-top: 6px; padding-top: 4px; border-top: 1px dashed var(--line); }
+  .rk-lead { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 3px; font-size: 13px; line-height: 1.5; color: var(--muted); font-weight: 400; }
+  .rk-main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
+  .rk-main .rk-sum { margin-top: 0; }
+  .rk-vol { margin-top: 12px; }
+  .rk-vol h4 { margin-top: 0 !important; }
+  .rk-inds { margin-top: 12px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .rk-inds ul { list-style: none; margin: 0; padding: 0; }
+  .rk-inds li { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .rk-inds li:last-child { border-bottom: none; }
+  .rk-inds .nm { flex: none; min-width: 9em; color: var(--text); }
+  .rk-inds b { flex: none; font-size: 15px; color: var(--text); }
+  .rk-inds small { margin-left: auto; color: var(--muted); font-size: 12px; text-align: right; }
+  @media (max-width: 560px) { .rk-inds li { flex-wrap: wrap; gap: 2px 10px; } .rk-inds .nm { min-width: 0; } .rk-inds small { margin-left: 0; width: 100%; text-align: left; } }
+  @media (max-width: 760px) { .rk-main { grid-template-columns: 1fr; } }
   .rk-ai p { margin: 6px 0; font-size: 14px; line-height: 1.6; }
   .spark { display: flex; align-items: flex-end; gap: 3px; height: 54px; }
   .spark i { flex: 1; background: var(--chip); border-radius: 3px 3px 0 0; min-width: 6px; } .spark i.today { background: var(--accent); }
@@ -2328,27 +2342,31 @@ function renderHome() {
     const inds = ind.filter(t => x.terms.some(w => t.name.includes(w))).slice(0, 4);
     return `<div class="rk ${open ? "open" : ""}">
       <button class="rk-h" data-rk="${x.id}"><span class="rank">${i + 1}</span>${issueThumb(x)}
-        <span class="rk-t"><b>${esc(x.label)}</b></span>
+        <span class="rk-t"><b>${esc(x.label)}</b><span class="rk-lead">${esc(x.summary || x.title)}</span></span>
         <span class="sec" style="background:${COLOR(x.section)}">${x.section}</span>
         <span class="n">${x.press}개 언론사${x.new ? ` <em class="new">NEW</em>` : ""}${fset.has(x.id) ? " ⭐" : ""}</span></button>
       ${open ? `<div class="rk-b">
+        <div class="rk-main">
+          <div class="rk-list">
+        <h4>언론사별 보도</h4><ul class="mini">${x.articles.slice(0, 8).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small></li>`).join("")}</ul>
+          </div>
+          <div class="rk-side">
         <div class="rk-sum">
           ${(x.terms || []).length ? `<div class="rk-tags">${x.terms.slice(0, 5).map(t => `<span>#${esc(t)}</span>`).join("")}</div>` : ""}
           <h4>이슈 요약</h4>
           <p>${esc(x.summary || x.title)}</p>
           <small>${x.press}개 언론사 · 기사 ${x.count}건을 AI가 한 문장으로 정리했어요</small>
         </div>
+        <div class="rk-vol"><h4>최근 보도량 <small>지난 ${(x.history || []).length}일 → 오늘</small></h4>
+            <div class="spark">${hist.map((c, j) => `<i style="height:${Math.max(4, c / hmax * 100)}%" title="${j === hist.length - 1 ? "오늘" : x.history[j].date} ${c}건" class="${j === hist.length - 1 ? "today" : ""}"></i>`).join("")}</div></div>
         <div class="rk-ai">${ex ? `<h4>내 수준(LEVEL ${overallLevel() || "?"})에 맞춘 설명</h4>
             ${ex.what ? `<p><b>무슨 일?</b> ${esc(ex.what)}</p>` : ""}${ex.why ? `<p><b>왜 중요?</b> ${esc(ex.why)}</p>` : ""}
             ${(ex.watch || []).length ? `<p><b>지켜볼 것</b></p><ul class="mini">${ex.watch.map(w => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
             ${(ex.terms || []).length ? `<p><b>용어 풀이</b></p><ul class="mini">${ex.terms.map(t => `<li><b>${esc(t.term)}</b> — ${esc(t.meaning)}</li>`).join("")}</ul>` : ""}`
           : aiBusy.has(key) ? `<p class="help">AI가 설명을 만드는 중이에요…</p>` : ""}</div>
-        <h4>언론사별 보도</h4><ul class="mini">${x.articles.slice(0, 8).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small></li>`).join("")}</ul>
-        <div class="cols rk-more">
-          <div><h4>최근 보도량 <small>지난 ${(x.history || []).length}일 → 오늘</small></h4>
-            <div class="spark">${hist.map((c, j) => `<i style="height:${Math.max(4, c / hmax * 100)}%" title="${j === hist.length - 1 ? "오늘" : x.history[j].date} ${c}건" class="${j === hist.length - 1 ? "today" : ""}"></i>`).join("")}</div></div>
-          ${inds.length ? `<div><h4>관련 지표</h4><ul class="mini">${inds.map(t => `<li>${esc(t.name)} <b>${esc(t.value)}${/=/.test(t.unit || "") ? "" : esc(t.unit)}</b><small>${/=/.test(t.unit || "") ? `기준 ${esc(t.unit)} · ` : ""}${esc(fmtPeriod(t.period))} · ${esc(t.agency)}</small></li>`).join("")}</ul></div>` : ""}
+          </div>
         </div>
+        ${inds.length ? `<div class="rk-inds"><h4>관련 지표</h4><ul>${inds.map(t => `<li><span class="nm">${esc(t.name)}</span><b>${esc(t.value)}${/=/.test(t.unit || "") ? "" : esc(t.unit)}</b><small>${/=/.test(t.unit || "") ? `기준 ${esc(t.unit)} · ` : ""}${esc(fmtPeriod(t.period))} · ${esc(t.agency)}</small></li>`).join("")}</ul></div>` : ""}
         ${x.photo && x.photo.page ? `<p class="photo-credit">썸네일 사진: <a href="${esc(x.photo.by_url || x.photo.page)}" target="_blank" rel="noopener">${esc(x.photo.by || "작가")}</a> / <a href="${esc(x.photo.page)}" target="_blank" rel="noopener">${esc(x.photo.site || "Unsplash")}</a> (이슈를 상징하는 무료 사진이며 기사 속 장면이 아니에요)</p>` : ""}
         <div class="ai-key">
           <button class="btn ${fset.has(x.id) ? "" : "primary"}" data-follow="${x.id}">${fset.has(x.id) ? "⭐ 팔로우 중 (그만 보기)" : "⭐ 이 이슈 팔로우"}</button>
