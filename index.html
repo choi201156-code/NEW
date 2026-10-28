@@ -2227,6 +2227,37 @@ $("sbMake").onclick = () => {
   if (!r.owner || !r.repo) { flash("GitHub 아이디·저장소를 알 수 없어요"); return; }
   window.open(`https://github.com/${r.owner}/${r.repo}/new/main?filename=site-config.json&value=${encodeURIComponent(json)}`, "_blank");
 };
+  // 첫 방문 안내 팝업: 레벨을 아직 안 정했고, 오늘 닫지 않았을 때만
+function welcomeInit() {
+  const pop = $("welcomePopup");
+  if (!pop) return;
+  const KEY = "welcome_closed";
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const close = () => {
+    pop.hidden = true;
+    try {
+      if ($("popupNeverShow").checked) localStorage.setItem(KEY, today); // 오늘 하루 안 보기
+      sessionStorage.setItem(KEY, "1");                                   // 이번 방문 동안 안 보기
+    } catch {}
+  };
+
+  $("popupCloseBtn").onclick = close;
+  $("popupStartBtn").onclick = () => { close(); $("levelBtn").click(); };
+  pop.addEventListener("click", e => { if (e.target === pop) close(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden) close(); });
+
+  try {
+    const hiddenToday = localStorage.getItem(KEY) === today;
+    const hiddenSession = sessionStorage.getItem(KEY) === "1";
+    if (!myLevels() && !hiddenToday && !hiddenSession) {
+      pop.hidden = false;
+      $("popupStartBtn").focus();
+    }
+  } catch {}
+}
+
 (async () => {
   ghState();
   await acct.init();
