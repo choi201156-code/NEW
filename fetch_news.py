@@ -924,6 +924,72 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
     return out
 
 
+PHOTO_CACHE = DATA_DIR / "photo-cache.json"
+
+
+def add_issue_photos(rank, pexels_key, ai_key, ai_model):
+    """이슈 랭킹마다 썸네일 사진 붙이기: ChatKHU가 영어 검색어를 만들고 → Pexels(무료 사진)에서 찾음.
+    같은 이슈(id)는 저장해 둔 사진을 다시 씀. 키가 없거나 실패하면 사진 없이 둠(사이트는 아이콘 썸네일로 대체)."""
+    if not pexels_key or not rank:
+        return
+    try:
+        cache = json.loads(PHOTO_CACHE.read_text(encoding="utf-8"))
+    except Exception:
+        cache = {}
+    used = set()
+    need = []
+    for x in rank:
+        c = cache.get(x["id"])
+        if c and c.get("pid") not in used:
+            x["photo"] = {k: c[k] for k in ("src", "by", "by_url", "page", "alt") if k in c}
+            used.add(c.get("pid"))
+        else:
+            need.append(x)
+    if not need:
+        return
+    # 1) 검색어 만들기 (ChatKHU, 한 번에)
+    queries = {}
+    if ai_key:
+        try:
+            lines = "\n".join(f'{i}. [{x["section"]}] {x["label"]} / {x.get("summary") or x["title"]}' for i, x in enumerate(need))
+            res = parse_json(claude(
+                "아래 뉴스 이슈마다 무료 사진 사이트에서 썸네일 사진을 찾을 영어 검색어를 만들어줘.\n"
+                "- 2~4단어, 사물·장소·상징 위주 (예: 'semiconductor chip', 'stock market chart', 'courthouse columns', 'ballot box')\n"
+                "- 사람 이름, 정치인, 특정 회사 로고는 넣지 마. 사람 얼굴이 중심이 되는 사진이 나올 단어도 피해.\n"
+                '출력은 JSON 객체 하나만: {"번호": "검색어", ...}\n\n' + lines,
+                ai_key, ai_model, max_tokens=600))
+            queries = {int(k): str(v)[:60] for k, v in (res or {}).items() if str(k).isdigit()}
+        except Exception as e:
+            print(f"  사진 검색어(AI) 실패: {e}")
+            AI.setdefault("errors", []).append(f"사진 검색어 만들기 실패: {str(e)[:150]}")
+    # 2) Pexels에서 찾기
+    for i, x in enumerate(need):
+        q = queries.get(i)
+        params = {"query": q, "per_page": 8, "orientation": "landscape"} if q else \
+                 {"query": " ".join(x.get("terms", [])[:2]) or x["label"], "per_page": 8, "orientation": "landscape", "locale": "ko-KR"}
+        try:
+            data = http_json("https://api.pexels.com/v1/search?" + urllib.parse.urlencode(params),
+                             {"Authorization": pexels_key, "User-Agent": "issue-tracking"}, timeout=15)
+        except Exception as e:
+            print(f"  사진 찾기 실패({x['label']}): {e}")
+            continue
+        ph = next((p for p in data.get("photos", []) if p.get("id") not in used), None)
+        if not ph:
+            continue
+        used.add(ph["id"])
+        info = {"src": ph["src"].get("medium") or ph["src"].get("small"), "by": ph.get("photographer", ""),
+                "by_url": ph.get("photographer_url", ""), "page": ph.get("url", ""), "alt": ph.get("alt", "") or (q or "")}
+        x["photo"] = info
+        cache[x["id"]] = {**info, "pid": ph["id"], "q": q or params["query"]}
+        time.sleep(0.2)
+    # 최근 300개만 보관
+    if len(cache) > 300:
+        cache = dict(list(cache.items())[-300:])
+    PHOTO_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    PHOTO_CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+    print(f"  이슈 사진 {sum(1 for x in rank if x.get('photo'))}/{len(rank)}개")
+
+
 def merge_same_issues(out, fmap, ai_key, ai_model):
     """단어 묶기로는 갈라진 같은 사안 합치기 (예: '코스피 6000선 탈환'과 '코스피 6000선 회복')
     AI에게 이슈 이름·요약 목록을 한 번에 보여주고, 같은 사건인 번호끼리만 묶게 함. 실패하면 그대로 둠."""
@@ -1339,6 +1405,7 @@ def main():
         today_titles = list(dict.fromkeys([x["t"] for x in pool_items] + day_titles(result)))
         result["trending"] = trending_terms(today_titles, [t for _, t in past])
         result["issue_rank"] = build_issue_rank(pool_items, result["foreign"], past, ai_key, ai_model)
+        add_issue_photos(result["issue_rank"], os.environ.get("PEXELS_API_KEY", "").strip(), ai_key, ai_model)
 
         # 9) 사설 이슈 (구체적인 사안만, 오늘 기사 랭킹과 연결)
         op = result["opinion"]
