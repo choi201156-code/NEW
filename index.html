@@ -204,11 +204,13 @@
   .ranks { display: grid; gap: 6px; }
   .rk { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
   .rk.open { border-color: var(--accent); }
-  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px 104px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
+  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) 48px 105px; gap: 10px; align-items: center; padding: 10px 12px; }
   .rk-h:focus-visible { outline: 2px solid var(--accent); border-radius: 10px; }
   .rk-h .rank { color: var(--accent); font-weight: 700; } .rk-t { min-width: 0; } .rk-t b { display: block; }
   .rk-t small { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rk-h .n { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .rk-h .sec { width: 44px; text-align: center; justify-self: center; white-space: nowrap; }
+.rk-h .n { width: 105px; text-align: left; white-space: nowrap; }
   .new { font-style: normal; color: #fff; background: var(--accent); border-radius: 4px; padding: 0 5px; font-size: 10px; font-weight: 700; }
   .rk-thumb { width: 104px; height: 66px; border-radius: 9px; background: linear-gradient(135deg, var(--c1), var(--c2)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; }
   .rk-thumb i { font-style: normal; font-size: 26px; line-height: 1; }
