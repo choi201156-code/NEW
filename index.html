@@ -334,6 +334,43 @@
   .modal-content h2 { margin: 0 0 12px; font-size: 18px; color: var(--text); }
   .modal-content p { font-size: 14px; color: var(--muted); margin: 0; line-height: 1.6; word-break: keep-all; }
   .modal-chk { display: block; text-align: center; margin-top: 14px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  
+/* ================= 경희대 5색 팔레트 ================= */
+:root {
+  --kh-red:    #A40F16;
+  --kh-blue:   #0D326F;
+  --kh-gold:   #C0A353;
+  --kh-gray:   #717171;
+  --kh-silver: #B5B5B5;
+
+  color-scheme: light;
+  --bg:     color-mix(in srgb, var(--kh-silver) 12%, #fff);
+  --card:   #ffffff;
+  --text:   var(--kh-blue);
+  --muted:  var(--kh-gray);
+  --line:   color-mix(in srgb, var(--kh-silver) 65%, #fff);
+  --chip:   color-mix(in srgb, var(--kh-silver) 22%, #fff);
+  --accent: var(--kh-red);
+
+  --s-정치: var(--kh-blue);  --s-경제: var(--kh-red);  --s-사회: var(--kh-gray);  --s-세계: var(--kh-gold);
+  --s-IT: var(--kh-gray);    --s-생활: var(--kh-gold); --s-사설: var(--kh-red);    --s-오피니언: var(--kh-red);
+  --s-기타: var(--kh-silver);
+
+  --l1: var(--kh-blue); --l2: var(--kh-gray); --l3: var(--kh-gold); --l4: var(--kh-silver); --l5: var(--kh-red);
+}
+
+header { background: var(--kh-blue); border-bottom: 3px solid var(--kh-gold); }
+header h1 { color: #ffffff; }
+header h1 span { color: var(--kh-gold); }
+header .view.on { background: #ffffff; color: var(--kh-blue); border-color: #ffffff; }
+header .view.on small { background: color-mix(in srgb, var(--kh-blue) 12%, transparent); color: var(--kh-blue); }
+header .tab.on { color: #ffffff; border-bottom-color: var(--kh-gold); }
+
+.ind .chg.up, .indmini .up { color: var(--kh-red); }
+.ind .chg.down, .indmini .down { color: var(--kh-blue); }
+.msg.err { color: var(--kh-red); border-color: color-mix(in srgb, var(--kh-red) 35%, #fff); }
+:focus-visible { outline: 2px solid var(--kh-gold); outline-offset: 2px; }
+
 </style>
 </head>
 <body>
@@ -536,7 +573,7 @@ const ORDER = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문�
 const MAIN = ["정치", "경제", "사회", "세계", "IT/과학", "생활/문화"];
 const VIEWS = [["home", "오늘 한눈에"], ["notes", "이슈 노트"], ["fields", "분야별"], ["news", "키워드 뉴스"], ["opinion", "사설·칼럼"], ["foreign", "해외 인용"], ["indicators", "경제지표"]];
 const COLOR = s => getComputedStyle(document.documentElement)
-  .getPropertyValue("--s-" + s.split("/")[0].trim()).trim() || "#868e96";
+  .getPropertyValue("--s-" + s.split("/")[0].trim()).trim() || "#717171";
 // 운영자 칸: 사이트 주소 끝에 ?admin 을 붙여 열면 보임 (한 번 열면 이 브라우저에선 계속)
 try { if (/[?&#]admin\b/.test(location.search + location.hash)) localStorage.setItem("is_admin", "1"); if (/[?&#]noadmin\b/.test(location.search + location.hash)) localStorage.removeItem("is_admin"); } catch {}
 try { if (localStorage.getItem("is_admin")) document.body.classList.add("admin"); } catch {}
