@@ -898,7 +898,7 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
             "label": " · ".join(terms[:3]), "terms": terms, "section": secs.most_common(1)[0][0],
             "press": c["press"], "count": len(mem), "title": rep["title"], "url": rep["url"],
             "articles": arts[:12], "outlets": oc.most_common(6), "history": hist,
-            "new": bool(hist) and hist[-1]["count"] == 0, "summary": "",
+            "new": bool(hist) and hist[-1]["count"] == 0, "summary": "", "_mem": mem,
         })
     if ai_key and out:
         for b in range(0, len(out), 5):
@@ -918,6 +918,54 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
             except Exception as e:
                 print(f"  이슈 이름 붙이기(AI) 실패: {e}")
                 AI.setdefault("errors", []).append(f"이슈 랭킹 이름 붙이기 실패({b + 1}~{b + 5}위): {str(e)[:150]}")
+        out = merge_same_issues(out, fmap, ai_key, ai_model)
+    for x in out:
+        x.pop("_mem", None)
+    return out
+
+
+def merge_same_issues(out, fmap, ai_key, ai_model):
+    """단어 묶기로는 갈라진 같은 사안 합치기 (예: '코스피 6000선 탈환'과 '코스피 6000선 회복')
+    AI에게 이슈 이름·요약 목록을 한 번에 보여주고, 같은 사건인 번호끼리만 묶게 함. 실패하면 그대로 둠."""
+    if len(out) < 2:
+        return out
+    try:
+        lines = "\n".join(f'{i}. [{x["section"]}] {x["label"]} / {x["summary"] or x["title"]}' for i, x in enumerate(out))
+        res = parse_json(claude(
+            "아래는 오늘 뉴스에서 여러 언론사가 함께 다룬 이슈 목록이야. 사실상 같은 사건·사안을 다룬 번호끼리 묶어줘.\n"
+            "- 같은 사건을 다른 표현으로 쓴 것(예: '코스피 6000선 탈환'과 '코스피 6000선 회복')만 묶어.\n"
+            "- 주제만 비슷한 다른 사건(예: 서로 다른 회사의 실적 발표, 서로 다른 나라의 선거)은 묶지 마.\n"
+            "- 확실하지 않으면 묶지 마.\n"
+            '출력은 JSON 객체 하나만: {"groups": [[1, 7]]} (묶을 것이 없으면 {"groups": []})\n\n' + lines,
+            ai_key, ai_model, max_tokens=400))
+        groups = res.get("groups") if isinstance(res, dict) else None
+    except Exception as e:
+        print(f"  같은 이슈 합치기(AI) 실패: {e}")
+        AI.setdefault("errors", []).append(f"이슈 랭킹 중복 합치기 실패: {str(e)[:150]}")
+        return out
+    drop = set()
+    for g in groups or []:
+        if not isinstance(g, list):
+            continue
+        idx = sorted({int(i) for i in g if str(i).strip().isdigit() and 0 <= int(i) < len(out)} - drop)
+        if len(idx) < 2:
+            continue
+        main = max(idx, key=lambda i: (out[i]["press"], out[i]["count"]))
+        m = out[main]
+        mem = list({a["url"]: a for i in idx for a in out[i]["_mem"]}.values())
+        mem.sort(key=lambda a: a["published"], reverse=True)
+        seen, arts = set(), []
+        for a in mem:
+            if a["press"] not in seen:
+                seen.add(a["press"])
+                arts.append({"title": a["title"], "url": a["url"], "press": a["press"], "published": a["published"]})
+        m["_mem"], m["press"], m["count"], m["articles"] = mem, len(seen), len(mem), arts[:12]
+        m["outlets"] = Counter(o for a in mem for o in fmap.get(a["url"], [])).most_common(6)
+        m["terms"] = list(dict.fromkeys(m["terms"] + [w for i in idx if i != main for w in out[i]["terms"]]))[:6]
+        drop.update(i for i in idx if i != main)
+        print(f"  같은 이슈 합침: {' + '.join(out[i]['label'] for i in idx)}")
+    out = [x for i, x in enumerate(out) if i not in drop]
+    out.sort(key=lambda x: (x["press"], x["count"]), reverse=True)
     return out
 
 
