@@ -1092,17 +1092,22 @@ function renderForeign() {
   const inSec = inScope(state.sec);
   const count = countBy(inSec, a => a.outlets);
   const top = byCount(count).slice(0, 6);
-  $("topbox").innerHTML = "";
+    const favO = acct.get("fav_out", []);
+  const fb = o => `<button class="favout" data-out="${esc(o)}" title="내 매체에 담기" style="border:0;background:none;cursor:pointer;font-size:15px;color:${favO.includes(o) ? "#e8a400" : "#aaa"}">${favO.includes(o) ? "★" : "☆"}</button>`;
+  $("topbox").innerHTML = `<div class="box"><button class="btn sm" data-favonly="1">${state.favOnly ? "⭐ 내 매체만 보는 중 (누르면 전체)" : "⭐ 내 매체만 보기"} <small>${favO.length}곳</small></button> <span class="help">기사 아래 매체 이름 옆 ☆를 누르면 내 매체로 담겨요.</span></div>`;
+
   pressPicker(count, inSec.length, { all: "모든 매체", ph: "해외 매체 검색 (예: 로이터, NYT, 블룸버그)", dict: "인용된 해외 매체" });
   const links = a => `<div class="olinks">${a.outlets.map(o => {
     const m = meta[o] || {}; if (!m.domain) return "";
     const direct = (a.outlet_urls || {})[o];
-    if (direct) return `<a class="olink" href="${esc(direct)}" target="_blank" rel="noopener"><b>${esc(m.en || o)}</b> 원문 보기 ↗</a>`;
+       if (direct) return `${fb(o)}<a class="olink" href="${esc(direct)}" target="_blank" rel="noopener"><b>${esc(m.en || o)}</b> 원문 보기 ↗</a>`;
+
     const q = (a.en_query ? a.en_query + " " : "") + `site:${m.domain} when:7d`;
     const url = `https://news.google.com/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
-    return `<a class="olink" href="${url}" target="_blank" rel="noopener"><b>${esc(m.en || o)}</b> 비슷한 기사 검색 ↗</a>`;
+        return `${fb(o)}<a class="olink" href="${url}" target="_blank" rel="noopener"><b>${esc(m.en || o)}</b> 비슷한 기사 검색 ↗</a>`;
+
   }).join("")}${(a.body_outlets || []).length ? `<span class="bodytag">· ${a.body_outlets.map(esc).join(", ")}: 본문에서 인용</span>` : ""}</div>`;
-  showList(searchSort(inSec.filter(a => state.chip === "전체" || a.outlets.includes(state.chip)), a => a.outlets.join(" ")), links);
+  showList(searchSort(inSec.filter(a => (state.chip === "전체" || a.outlets.includes(state.chip)) && (!state.favOnly || a.outlets.some(o => favO.includes(o)))), a => a.outlets.join(" ")), links);
 }
 
 /* ③ 사설·칼럼 */
@@ -1208,7 +1213,11 @@ document.addEventListener("click", e => {
   acct.set("fav_ind", cur.includes(k) ? cur.filter(v => v !== k) : [...cur, k]);
   render();
 });
-
+document.addEventListener("click", e => {
+  const o = e.target.closest("[data-out]");
+  if (o) { const k = o.dataset.out, cur = acct.get("fav_out", []); acct.set("fav_out", cur.includes(k) ? cur.filter(v => v !== k) : [...cur, k]); render(); return; }
+  if (e.target.closest("[data-favonly]")) { state.favOnly = !state.favOnly; render(); }
+});
 
 /* ④ 경제지표 */
 function renderIndicators() {
@@ -1790,7 +1799,7 @@ $("ghSave").onclick = async () => {
 /* ---------- 계정 (사용자별 저장) ---------- */
 function flash(msg) { const f = $("floatmsg"); f.textContent = msg; f.classList.add("show"); clearTimeout(flash.t); flash.t = setTimeout(() => f.classList.remove("show"), 2400); }
 // 사용자 데이터: 로그인하면 계정(Supabase)에, 아니면 이 브라우저에 저장
-const UKEYS = ["issue_notes", "levels", "follows", "word_stops", "ai_cache", "my_cfg", "attendance", "fav_ind"];
+const UKEYS = ["issue_notes", "levels", "follows", "word_stops", "ai_cache", "my_cfg", "attendance", "fav_ind", "fav_out"];
 const acct = {
   client: null, user: null, blob: {}, timer: null, cfg: null, status: "",
   get(k, def) {
