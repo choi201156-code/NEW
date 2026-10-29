@@ -31,7 +31,6 @@ jobs:
           CHATKU_API_KEY: ${{ secrets.CHATKU_API_KEY }}
           CHATKU_BASE_URL: ${{ secrets.CHATKU_BASE_URL }}
           CHATKU_MODEL: ${{ secrets.CHATKU_MODEL }}
-          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         run: |
           mkdir -p docs/data && cp -r data/. docs/data/ 2>/dev/null || true
           python fetch_news.py
