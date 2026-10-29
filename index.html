@@ -542,62 +542,45 @@ header input[type="date"].btn {
 }
 header input[type="date"].btn:hover { background: rgba(255, 255, 255, 0.25); }
 header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
-/* ===== 모바일 개선 2차 (폭 760px 이하에서만 적용) ===== */
+
+/* ===== 모바일 헤더: ☰ 메뉴 방식 ===== */
+.menu-btn { display: none; }
+
 @media (max-width: 760px) {
-  /* 오늘 한눈에 순서: 이슈 랭킹 → 사설·칼럼 TOP5 → 맞춤 기사 → 팔로우 */
-  .home-grid { display: flex; flex-direction: column; gap: 0; }
-  .home-main, .home-side { display: contents; }
-  .hm-rank { order: 1; }
-  .hm-op { order: 2; }
-  .hm-rec { order: 3; }
-  .hm-follow { order: 4; }
+  /* 첫 줄: ☰ | 로고 | 날짜 | 로그인 */
+  header .top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0 6px; overflow: visible; }
+  header .top .menu-btn { display: inline-flex; align-items: center; justify-content: center; order: 1; flex: none; width: 40px; min-height: 40px; padding: 0; font-size: 18px; }
+  header .top h1 { order: 2; flex: 1 1 auto; min-width: 0; font-size: 17px; margin: 0; white-space: nowrap; }
+  header .top input[type="date"] { order: 3; flex: none; width: 128px; min-height: 40px; font-size: 13px; padding: 4px 6px; }
+  header .top #acctBtn { order: 4; flex: none; min-height: 40px; font-size: 13px; padding: 6px 10px; white-space: nowrap; }
 
-  /* 헤더: 스크롤하면 위로 사라지게 (화면을 덜 가림) */
-  header { position: static; }
+  /* 메뉴 항목: 평소에는 숨김 */
+  header .top #levelBtn, header .top #openAi, header .top #openSettings, header .top #helpBtn { display: none; }
 
-  /* 카드 */
-  .box { padding: 14px 12px; margin-top: 12px; overflow-wrap: anywhere; }
-  .box h3 { flex-wrap: wrap; row-gap: 2px; font-size: 16px; line-height: 1.4; }
-  .box h3 small { font-size: 12px; }
+  /* ☰를 누르면 한 줄에 하나씩 펼침 */
+  header.menu-open .top #levelBtn,
+  header.menu-open .top #openAi,
+  header.menu-open .top #openSettings,
+  header.menu-open .top #helpBtn {
+    display: flex; align-items: center; justify-content: flex-start;
+    order: 10; flex: 1 0 100%; width: 100%; min-height: 46px; padding: 10px 14px;
+    font-size: 15px; text-align: left; border-radius: 10px;
+  }
+  header.menu-open .top #helpBtn { width: 100%; }
+  header.menu-open .top #helpBtn::after { content: " 사용법 다시 보기"; margin-left: 6px; font-weight: 500; }
 
-  /* 이슈 랭킹 */
-  .rk-h { padding: 12px 10px; }
-  .rk-t b { font-size: 15px; line-height: 1.45; }
-
-  /* 사설·칼럼 이슈 */
-  .issue { padding: 12px; }
-  .issue .head { flex-wrap: wrap; row-gap: 2px; }
-  .issue .name { line-height: 1.45; }
-
-  /* 기사 목록 */
-  .list { gap: 12px; }
-  .item { padding: 14px 12px; }
-  .item a.t { font-size: 15.5px; line-height: 1.5; display: inline-block; }
-  .item p { font-size: 14px; line-height: 1.55; }
-  .info { gap: 6px 10px; line-height: 1.6; }
-
-  /* 누르기 쉬운 크기 (40px 안팎) */
-  .btn { min-height: 40px; }
-  .btn.sm { min-height: 34px; padding: 4px 10px; }
-  .chip { padding: 8px 14px; font-size: 14px; }
-  .view { padding: 9px 14px; }
-  .tab { min-height: 44px; }
-
-  /* 설정·AI·로그인 패널 */
-  .panel { padding: 14px 12px; }
-  .panel h2 { font-size: 17px; }
-
-  /* 가로로 넘치는 것 방지 */
-  img, table, pre { max-width: 100%; }
-  body { overflow-x: hidden; }
+  /* 소개 문구는 유지, 탭은 가로 스크롤 */
+  header .tagline { display: block; font-size: 12px; margin: 0 0 4px; }
+  header .views { flex-wrap: nowrap; overflow-x: auto; }
+  header .view { flex: none; }
 }
-
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
     <div class="top">
+      <button class="btn menu-btn" id="menuBtn" type="button" aria-label="메뉴 열기" aria-expanded="false">☰</button>
       <h1><a href="#" data-act="gohome" style="text-decoration: none; color: inherit;"><span>이슈</span>트래킹</a></h1>
       <button class="btn" id="levelBtn">📊 레벨테스트</button>
       <button class="btn" id="openAi">🤖 AI 추천</button>
@@ -2526,8 +2509,8 @@ function renderHome() {
     </div>
   </section>`;
    $("topbox").innerHTML = `<div class="home-grid">
-<div class="home-main"><div class="hm-rank">${rankHtml}</div><div class="hm-follow">${followHtml}</div><div class="hm-rec">${recHtml}</div></div>
-<aside class="home-side"><div class="hm-op">${opHtml}</div></aside>
+    <div class="home-main"><div class="hm-rank">${rankHtml}</div><div class="hm-rec">${recHtml}</div></div>
+    <aside class="home-side"><div class="hm-op">${opHtml}</div><div class="hm-follow">${followHtml}</div></aside>
   </div>`;
 }
 $("topbox").addEventListener("click", e => {
@@ -2678,6 +2661,29 @@ function welcomeInit() {
     render(); // 화면 새로고침 함수
   }
 });
+</script>
+  <script>
+(function () {
+  var hd = document.querySelector("header");
+  var mb = document.getElementById("menuBtn");
+  if (!hd || !mb) return;
+  function setOpen(on) {
+    hd.classList.toggle("menu-open", on);
+    mb.setAttribute("aria-expanded", on ? "true" : "false");
+    mb.textContent = on ? "✕" : "☰";
+    mb.setAttribute("aria-label", on ? "메뉴 닫기" : "메뉴 열기");
+  }
+  mb.addEventListener("click", function (e) { e.stopPropagation(); setOpen(!hd.classList.contains("menu-open")); });
+  // 메뉴 안의 버튼을 누르면 메뉴를 닫음
+  ["levelBtn", "openAi", "openSettings", "helpBtn"].forEach(function (id) {
+    var b = document.getElementById(id);
+    if (b) b.addEventListener("click", function () { setOpen(false); });
+  });
+  // 메뉴 바깥을 누르면 닫음
+  document.addEventListener("click", function (e) {
+    if (hd.classList.contains("menu-open") && !e.target.closest("header .top")) setOpen(false);
+  });
+})();
 </script>
 </body>
 </html>
