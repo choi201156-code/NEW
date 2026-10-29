@@ -782,16 +782,25 @@ const state = { test: null, data: null, view: "home", sec: "전체", chip: "전�
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+let availDates = [];
 async function loadDates() {
   try {
     const { dates } = await (await fetch("data/index.json", { cache: "no-store" })).json();
-    $("date").innerHTML = dates.map(d => `<option>${d}</option>`).join("");
-    if (dates.length) loadDay(dates[0]);
-    else $("list").innerHTML = `<div class="empty">아직 수집된 기사가 없어요.</div>`;
+    availDates = [...dates].sort();
+    if (!availDates.length) { $("list").innerHTML = `<div class="empty">아직 수집된 기사가 없어요.</div>`; return; }
+    // 한국 시간 기준 오늘 날짜
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    $("date").min = availDates[0];
+    $("date").max = today;
+    // 오늘 기사가 있으면 오늘, 아직 없으면 오늘 이전 중 가장 최근 날짜
+    const pick = availDates.includes(today) ? today : ([...availDates].reverse().find(d => d <= today) || availDates[availDates.length - 1]);
+    $("date").value = pick;
+    await loadDay(pick);
   } catch {
     $("list").innerHTML = `<div class="empty">데이터를 불러오지 못했어요. 수집이 한 번 실행됐는지 확인해 주세요.</div>`;
   }
 }
+
 
 async function loadDay(date) {
   state.data = fixPress(await (await fetch(`data/${date}.json`, { cache: "no-store" })).json());
@@ -1252,7 +1261,23 @@ $("topbox").onclick = e => { const ok = e.target.closest("[data-opkw]"); if (ok)
 $("tabs").onclick = e => { const b = e.target.closest(".tab"); if (b) { state.sec = b.dataset.sec; state.chip = "전체"; render(); } };
 $("chips").onclick = e => { const b = e.target.closest(".chip"); if (b) { state.chip = b.dataset.chip; state.pressQ = ""; render(); } };
 $("q").oninput = e => { state.q = e.target.value; render(); };
-$("date").onchange = e => loadDay(e.target.value);
+$("date").onchange = async e => {
+  const v = e.target.value;
+  const prev = state.data ? state.data.date : "";
+  if (!v) { e.target.value = prev; return; }
+  if (availDates.length && !availDates.includes(v)) {
+    alert(v + " 에는 수집된 기사가 없어요. 기사가 있는 날짜를 골라 주세요.");
+    e.target.value = prev;
+    return;
+  }
+  try {
+    state.issue = null; state.chip = "전체";   // 이전 날짜에서 고른 이슈·칩 선택 해제
+    await loadDay(v);
+  } catch {
+    alert("그 날짜의 데이터를 불러오지 못했어요.");
+    e.target.value = prev;
+  }
+};
 
 /* ---------- AI 키워드 추천 ---------- */
 const store = {
