@@ -145,6 +145,27 @@ def section_from_link(link: str):
     return SID_MAP.get((qs.get("sid") or qs.get("sid1") or [None])[0])
 
 
+# 스포츠: 네이버 스포츠 기사는 섹션 번호가 없어서 엉뚱한 분야로 가던 문제 → 먼저 걸러 '스포츠'로
+SPORTS_HOSTS = ("sports", "football", "soccer", "baseball", "golf", "isplus.com", "osen.co.kr", "xportsnews", "stoo.com",
+                "mhnse.com", "goal.com", "fourfourtwo", "interfootball", "besteleven", "spotvnews", "stnsports", "tennis")
+SPORTS_RE = re.compile(r"감독|대표팀|국가대표|A매치|월드컵|올림픽|아시안게임|K리그|KBO|EPL|MLB|NBA|챔피언스리그|프리미어리그|"
+                       r"라리가|분데스리가|세리에|국왕컵|코파|이적|선발 출전|득점|홈런|투수|타자|이닝|우승|결승골|"
+                       r"축구|야구|농구|배구|골프|테니스|손흥민|이강인|김민재|황희찬|오타니|김하성|이정후")
+
+
+SPORTS_STRONG = re.compile(r"A매치|K리그|KBO|EPL|MLB|NBA|챔피언스리그|프리미어리그|라리가|분데스리가|세리에A|월드시리즈|"
+                           r"손흥민|이강인|김민재|황희찬|황인범|오타니|김하성|이정후|축구대표팀|야구대표팀")
+
+
+def is_sports(title: str, url: str = "") -> bool:
+    host = urllib.parse.urlparse(url).netloc.lower() + urllib.parse.urlparse(url).path.lower()[:20]
+    if any(h in host for h in SPORTS_HOSTS):
+        return True
+    if SPORTS_STRONG.search(title):          # 리그·선수 이름처럼 하나만 나와도 스포츠인 말
+        return True
+    return len(set(SPORTS_RE.findall(title))) >= 2
+
+
 def section_from_rules(text: str) -> str:
     scores = {sec: sum(text.count(w) for w in words) for sec, words in RULES.items()}
     best = max(scores, key=scores.get)
@@ -214,6 +235,8 @@ def search_recent(query, since, cid, secret, max_pages=10):
             orig = it.get("originallink") or link
             title, desc = clean(it["title"]), clean(it["description"])
             sec = section_from_link(link)
+            if not sec and is_sports(title, orig):
+                sec = "스포츠"
             out.append({
                 "title": title, "description": desc, "url": orig,
                 "naver_url": link if "naver.com" in link else None,
