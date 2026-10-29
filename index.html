@@ -1113,8 +1113,10 @@ function render() {
   if (!kwView) $("panel").classList.remove("open");
   $("q").placeholder = { indicators: "지표 이름·발표 기관 검색 (예: 물가, 고용)", foreign: "기사 제목·내용·매체 검색", opinion: "사설·칼럼 제목·내용 검색" }[state.view] || "기사 제목·내용·언론사 검색";
   ({ home: renderHome, notes: renderNotes, fields: renderFields, news: renderNews, foreign: renderForeign, opinion: renderOpinion, indicators: renderIndicators, papers: renderPapers })[state.view]();
-  if (isLib(state.view)) {
-    $("topbox").insertAdjacentHTML("afterbegin", `<div class="libnav">${LIB.map(([k, l]) => `<button class="libbtn ${k === state.view ? "on" : ""}" data-lib="${k}">${l}<small>${n[k] || ""}</small></button>`).join("")}</div>`);
+   if (isLib(state.view)) {
+    const secHtml = $("tabs").innerHTML;
+    $("tabs").innerHTML = LIB.map(([k, l]) => `<button class="tab libtab ${k === state.view ? "on" : ""}" data-lib="${k}">${l}<small>${n[k] || ""}</small></button>`).join("");
+    if (secHtml) $("topbox").insertAdjacentHTML("afterbegin", `<div class="libnav" id="libsec">${secHtml.replace(/class="tab /g, 'class="libbtn ')}</div>`);
   }
 }
 document.addEventListener("click", e => {
@@ -1128,7 +1130,10 @@ document.addEventListener("click", e => {
   state.view = state.libLast = b.dataset.lib; state.sec = "전체"; state.chip = "전체"; state.pressQ = ""; state.slot = null;
   render(); window.scrollTo(0, 0);
 });
-
+document.addEventListener("click", e => {
+  const b = e.target.closest("#libsec [data-sec]"); if (!b) return;
+  state.sec = b.dataset.sec; state.chip = "전체"; render();
+});
 /* ① 뉴스 · 사설·칼럼 공통: 내 키워드 줄 */
 const kwHit = a => { const t = (a.title + " " + (a.description || "")).toLowerCase(); return myAllKws().filter(k => t.includes(k.toLowerCase())); };
 const kwsOf = a => a.kws || (a._kh ||= kwHit(a));
