@@ -325,6 +325,21 @@
   .mini li { padding: 4px 0; border-top: 1px solid var(--line); } .mini li:first-child { border-top: 0; }
   .mini a { color: var(--text); text-decoration: none; } .mini a:hover { text-decoration: underline; }
   .mini small { color: var(--muted); margin-left: 4px; }
+    .fi { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); margin-top: 8px; overflow: hidden; }
+  .fi.open { border-color: var(--accent); }
+  .fi-h { display: flex; align-items: center; gap: 8px; padding: 11px 12px; cursor: pointer; }
+  .fi-h b { flex: 1; font-size: 14px; line-height: 1.35; color: var(--text); }
+  .fi-h .cnt { font-size: 11px; background: var(--chip); color: var(--muted); border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+  .fi-h .arrow { font-size: 11px; color: var(--muted); transition: .2s; }
+  .fi.open .arrow { transform: rotate(180deg); color: var(--accent); }
+  .fi-m { font-size: 11px; color: var(--muted); padding: 0 12px 10px; }
+  .fi-b { display: none; background: var(--card); border-top: 1px solid var(--line); padding: 6px 12px 10px; }
+  .fi.open .fi-b { display: block; }
+  .fi-b a { display: block; color: var(--text); text-decoration: none; font-size: 12.5px; line-height: 1.4; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .fi-b a:last-of-type { border-bottom: 0; }
+  .fi-b a:hover { text-decoration: underline; }
+  .fi-b small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
   .floatmsg { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
               padding: 8px 16px; border-radius: 999px; font-size: 14px; z-index: 20; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .floatmsg.show { opacity: 1; }
@@ -2832,8 +2847,10 @@ function renderHome() {
   // ③ 팔로우 중인 이슈
   if (follows.length && poolCache.date !== dd.date) loadPool();
   const followHtml = follows.length ? `<div class="box"><h3 class="hm-title">팔로우 중인 이슈 <small>오늘 나온 후속 보도</small></h3>
-    ${follows.map(f => { const m = followMatches(f); return `<div class="fl"><div class="fl-h"><b>${esc(f.label)}</b><small>${esc(f.since)}부터 · 오늘 ${m.length}건</small><button class="btn sm" data-unfollow="${f.id}">그만 보기</button></div>
-      ${m.length ? `<ul class="mini">${m.slice(0, 3).map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.press)}</small></li>`).join("")}</ul>` : `<p class="help" style="margin:4px 0 0">오늘은 후속 보도가 없어요.</p>`}</div>`; }).join("")}</div>` : `<div class="box"><h3 class="hm-title">팔로우 중인 이슈</h3><p class="help">위 랭킹에서 이슈를 누르고 ⭐ 이 이슈 팔로우를 눌러 보세요. 그 이슈의 후속 보도가 매일 여기에 모여서, 사건이 어떻게 흘러가는지 계속 따라갈 수 있어요.</p></div>`;
+    ${follows.map(f => { const m = followMatches(f); return `<div class="fi"><div class="fi-h" data-fitoggle="1"><b>${esc(f.label)}</b><span class="cnt">${m.length}건</span><span class="arrow">▼</span></div>
+      <div class="fi-m">${esc(f.since)}부터 · 오늘 ${m.length}건</div>
+      <div class="fi-b">${m.length ? m.slice(0, 5).map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}<small>${esc(a.press)}</small></a>`).join("") : `<p class="help" style="margin:4px 0 0">오늘은 후속 보도가 없어요.</p>`}<button class="btn sm" data-unfollow="${f.id}">그만 보기</button></div></div>`; }).join("")}</div>` : `<div class="box"><h3 class="hm-title">팔로우 중인 이슈</h3><p class="help">위 랭킹에서 이슈를 누르고 ⭐ 이 이슈 팔로우를 눌러 보세요. 그 이슈의 후속 보도가 매일 여기에 모여서, 사건이 어떻게 흘러가는지 계속 따라갈 수 있어요.</p></div>`;
+
 
   // ④ 내 수준 맞춤 기사
   let recHtml;
@@ -2902,6 +2919,8 @@ $("topbox").addEventListener("click", e => {
   const rkh = q("[data-rk]"); if (rkh) { state.rankOpen = state.rankOpen === rkh.dataset.rk ? null : rkh.dataset.rk; render(); return; }
   const rank = id => (d().issue_rank || []).find(x => x.id === id);
   const fo = q("[data-follow]"); if (fo) { toggleFollow(rank(fo.dataset.follow)); return; }
+    const fit = q("[data-fitoggle]"); if (fit) { fit.parentElement.classList.toggle("open"); return; }
+
   const ufo = q("[data-unfollow]"); if (ufo) { acct.set("follows", myFollows().filter(f => f.id !== ufo.dataset.unfollow)); render(); return; }
   const rn = q("[data-rknote]"); if (rn) { rankToNote(rank(rn.dataset.rknote)); return; }
   const ra = q("[data-rkai]"); if (ra) { if (!hasAiKey()) { flash("🤖 AI 추천 → 🔑 AI 연결 설정에서 키를 먼저 넣어주세요"); $("aiPanel").classList.add("open"); keyState(); window.scrollTo(0, 0); } else explainRank(ra.dataset.rkai); return; }
