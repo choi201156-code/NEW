@@ -543,36 +543,45 @@ header input[type="date"].btn {
 header input[type="date"].btn:hover { background: rgba(255, 255, 255, 0.25); }
 header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
 
-/* ===== 모바일 헤더: ☰ 메뉴 방식 ===== */
+/* ===== 모바일 헤더 최종: 파란 슬라이드 메뉴 + 글씨 ☰ ===== */
 .menu-btn { display: none; }
+.nav-ov, .nav-dr { display: none; }
 
 @media (max-width: 760px) {
   /* 첫 줄: ☰ | 로고 | 날짜 | 로그인 */
-  header .top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0 6px; overflow: visible; }
-  header .top .menu-btn { display: inline-flex; align-items: center; justify-content: center; order: 1; flex: none; width: 40px; min-height: 40px; padding: 0; font-size: 18px; }
+  header .top { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 10px 0; overflow: visible; border-bottom: 1px solid rgba(255, 255, 255, 0.25); }
+  header .top .menu-btn { display: inline-flex; align-items: center; justify-content: center; order: 1; flex: none; width: 36px; min-height: 40px; padding: 0; margin-left: -6px; background: none; border: 0; border-radius: 0; box-shadow: none; color: #ffffff; font-size: 24px; font-weight: 900; line-height: 1; -webkit-text-stroke: 1.2px currentColor; cursor: pointer; }
+  header .top .menu-btn:hover, header .top .menu-btn:active { background: none; }
   header .top h1 { order: 2; flex: 1 1 auto; min-width: 0; font-size: 17px; margin: 0; white-space: nowrap; }
   header .top input[type="date"] { order: 3; flex: none; width: 128px; min-height: 40px; font-size: 13px; padding: 4px 6px; }
   header .top #acctBtn { order: 4; flex: none; min-height: 40px; font-size: 13px; padding: 6px 10px; white-space: nowrap; }
 
-  /* 메뉴 항목: 평소에는 숨김 */
+  /* 원래 버튼 3개와 ? 는 모바일에서 숨김 (메뉴판에서 대신 눌러 줌) */
   header .top #levelBtn, header .top #openAi, header .top #openSettings, header .top #helpBtn { display: none; }
 
-  /* ☰를 누르면 한 줄에 하나씩 펼침 */
-  header.menu-open .top #levelBtn,
-  header.menu-open .top #openAi,
-  header.menu-open .top #openSettings,
-  header.menu-open .top #helpBtn {
-    display: flex; align-items: center; justify-content: flex-start;
-    order: 10; flex: 1 0 100%; width: 100%; min-height: 46px; padding: 10px 14px;
-    font-size: 15px; text-align: left; border-radius: 10px;
-  }
-  header.menu-open .top #helpBtn { width: 100%; }
-  header.menu-open .top #helpBtn::after { content: " 사용법 다시 보기"; margin-left: 6px; font-weight: 500; }
-
-  /* 소개 문구는 유지, 탭은 가로 스크롤 */
-  header .tagline { display: block; font-size: 12px; margin: 0 0 4px; }
-  header .views { flex-wrap: nowrap; overflow-x: auto; }
+  /* 소개 문구 + 아래 선, 탭은 가로 스크롤 */
+  header .tagline { display: block; margin: 0; padding: 9px 0; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.25); }
+  header .views { flex-wrap: nowrap; overflow-x: auto; padding-top: 10px; }
   header .view { flex: none; }
+
+  /* 어두운 배경 */
+  .nav-ov { display: block; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; z-index: 998; }
+  body.nav-open .nav-ov { opacity: 1; visibility: visible; }
+
+  /* 왼쪽에서 나오는 파란 메뉴판 */
+  .nav-dr { display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; width: 80%; max-width: 320px; background: var(--kh-blue); color: #ffffff; overflow-y: auto; transform: translateX(-100%); visibility: hidden; transition: transform .25s ease, visibility .25s; z-index: 999; box-shadow: 4px 0 18px rgba(0, 0, 0, 0.3); }
+  body.nav-open .nav-dr { transform: none; visibility: visible; }
+
+  /* 메뉴판 윗줄: ✕ + 로고 */
+  .nav-top { display: flex; align-items: center; gap: 10px; height: 60px; padding: 0 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.25); flex: none; }
+  .nav-x { background: none; border: 0; font-size: 22px; font-weight: 900; line-height: 1; color: #ffffff; padding: 8px; margin-left: -8px; cursor: pointer; }
+  .nav-logo { font-size: 18px; font-weight: 800; color: #ffffff; }
+  .nav-logo b { color: var(--kh-gold); }
+
+  /* 메뉴 항목: 네모 없이 글씨만 */
+  .nav-list { padding: 8px 0; }
+  .nav-item { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 0; padding: 17px 24px; font: inherit; font-size: 16px; color: #ffffff; cursor: pointer; }
+  .nav-item:active { background: rgba(255, 255, 255, 0.12); }
 }
 </style>
 </head>
@@ -2664,7 +2673,6 @@ function welcomeInit() {
 </script>
   <script>
 (function () {
-  var hd = document.querySelector("header");
   var mb = document.getElementById("menuBtn");
   if (!hd || !mb) return;
   function setOpen(on) {
