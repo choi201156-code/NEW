@@ -568,6 +568,43 @@ body:not(.is-fields) #panel { display: none !important; }
 }
 #openSettings:hover { background: color-mix(in srgb, var(--kh-red) 85%, #000); }
 
+/* 뉴스·사설칼럼 화면: 키워드 설정을 오른쪽 칸으로 */
+@media (min-width: 981px) {
+  body.is-fields .wrap {
+    max-width: 1320px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 22px;
+    align-items: start;
+  }
+  body.is-fields #topbox { display: contents; }
+  body.is-fields .wrap > *,
+  body.is-fields #topbox > * { grid-column: 1; min-width: 0; }
+
+  /* 오른쪽 칸 위: 빨간 키워드 설정 버튼 */
+  body.is-fields #kwBar {
+    grid-column: 2; grid-row: 1;
+    margin: 16px 0 0; text-align: left;
+  }
+  body.is-fields #kwBar #openSettings { width: 100%; }
+
+  /* 오른쪽 칸 아래: 내 키워드 + 추가 입력 (스크롤해도 따라옴) */
+  body.is-fields .kwrow {
+    grid-column: 2; grid-row: 2 / span 30;
+    position: sticky; top: 130px;
+    margin: 12px 0 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+    align-content: flex-start;
+  }
+  body.is-fields .kwrow .slab { flex: 1 1 100%; font-weight: 700; margin-bottom: 4px; }
+  body.is-fields .kwrow .kwquick { flex: 1 1 100%; margin: 8px 0 0; }
+  body.is-fields .kwrow .kwquick input { flex: 1; width: auto; min-width: 0; }
+}
 
 /* 이슈 노트: 모아보기 오른쪽 고정 */
 .home-side .timeline { gap: 2px; }
