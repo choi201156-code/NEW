@@ -1240,6 +1240,38 @@ def fetch_papers(field, key, ai_key, ai_model, today):
     return out
 
 
+# 영역별 논문: 분야를 만들지 않아도 볼 수 있게, 영역마다 고정 영어 검색어로 하루 한 번 모음 (AI 안 씀)
+AREA_PAPER_TERMS = {
+    "IT/과학": ["artificial intelligence", "large language model", "semiconductor", "quantum computing", "robotics"],
+    "경제": ["monetary policy", "inflation", "exchange rate", "labor market", "household debt"],
+    "사회": ["population aging", "fertility decline", "income inequality", "public health", "education policy"],
+    "정치": ["democracy", "elections", "political polarization", "public policy", "legislature"],
+    "세계": ["international trade", "tariffs", "geopolitics", "economic sanctions", "climate policy"],
+    "도시·지역": ["urban economics", "regional development", "housing policy", "agglomeration", "smart city"],
+}
+
+
+def fetch_area_papers(key, today):
+    day = lambda n: (today - timedelta(days=n)).strftime("%Y-%m-%d")
+    out = {}
+    for area, terms in AREA_PAPER_TERMS.items():
+        search = " OR ".join(f'"{t}"' if " " in t else t for t in terms)
+        row = {"terms": terms, "recent": [], "cited": []}
+        try:
+            row["recent"] = [paper_row(w) for w in openalex_get({
+                "search": search, "filter": f"from_publication_date:{day(30)},to_publication_date:{day(0)}",
+                "sort": "publication_date:desc", "per-page": 8, "select": OPENALEX_SELECT}, key).get("results", [])]
+            row["cited"] = [paper_row(w) for w in openalex_get({
+                "search": search, "filter": f"from_publication_date:{day(365)}",
+                "sort": "cited_by_count:desc", "per-page": 8, "select": OPENALEX_SELECT}, key).get("results", [])]
+        except Exception as e:
+            print(f"  영역 논문({area}) 실패: {e}")
+            row["error"] = str(e)[:200]
+        out[area] = row
+        time.sleep(0.3)
+    return out
+
+
 # ─────────────────────────────── 테스트용 가짜 데이터 ───────────────────────────────
 
 def mock_data(keywords):
@@ -1474,6 +1506,14 @@ def main():
         print(f"오늘의 말 {len(result['trending'])}개, 이슈 랭킹 {len(result['issue_rank'])}개")
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         pool_path.write_text(json.dumps(pool_items, ensure_ascii=False), encoding="utf-8")
+
+        # 영역별 논문: 같은 날 이미 모았으면 다시 부르지 않음 (하루 한 번)
+        prev_day = load_day(DATA_DIR / f"{result['date']}.json") or {}
+        if prev_day.get("area_papers") and not any(v.get("error") for v in prev_day["area_papers"].values()):
+            result["area_papers"] = prev_day["area_papers"]
+        else:
+            print("영역별 논문 (OpenAlex)")
+            result["area_papers"] = fetch_area_papers(env("OPENALEX_API_KEY", ""), now)
 
         for f in fields:
             if f.get("papers"):
