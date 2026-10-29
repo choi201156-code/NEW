@@ -575,15 +575,14 @@ body:not(.is-fields) #panel { display: none !important; }
 
 /* 뉴스·사설칼럼 화면: 키워드 설정을 오른쪽 칸으로 */
 @media (min-width: 981px) {
-  body.is-fields .wrap {
-    max-width: 1320px;
+  body.is-fields main.wrap {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
     column-gap: 22px;
     align-items: start;
   }
   body.is-fields #topbox { display: contents; }
-  body.is-fields .wrap > *,
+  body.is-fields main.wrap > *,
   body.is-fields #topbox > * { grid-column: 1; min-width: 0; }
 
   /* 오른쪽 칸 위: 빨간 키워드 설정 버튼 */
@@ -594,7 +593,7 @@ body:not(.is-fields) #panel { display: none !important; }
   body.is-fields #kwBar #openSettings { width: 100%; }
 
   /* 오른쪽 칸 아래: 내 키워드 + 추가 입력 (스크롤해도 따라옴) */
-  body.is-fields .kwrow {
+  body.is-fields #topbox > .kwrow {
     grid-column: 2; grid-row: 2 / span 30;
     position: sticky; top: 130px;
     margin: 12px 0 0;
@@ -706,6 +705,20 @@ body.notepop .home-side { display: none; }
 .rk-cats .chip.on { background: var(--kh-blue, #0D326F); color: #fff; }
 @media (max-width: 760px) { .hm-title { font-size: 17px !important; } .hm-title small { display: none; } .rk-cats .chip { font-size: 14px; padding: 6px 12px; } }
 
+/* ===== 화면 다듬기 (10/29 점검) ===== */
+.favrow .help, .box > button[data-favonly] ~ .help { font-size: 13px; }
+.rk-more { display: block; width: 100%; margin: 8px 0 0; text-align: center; }
+.home-side .hm-rec .lvlist button, .home-side .hm-rec .lvrow { font-size: 13px; }
+@media (max-width: 760px) {
+  /* 탭 5개가 한 화면에 다 보이게 줄 바꿈 */
+  header .views { flex-wrap: wrap; overflow: visible; gap: 6px; }
+  header .view { padding: 7px 12px; }
+  /* 이슈 노트: 제목 칸을 한 줄 전체로, ✕는 첫 줄 오른쪽 끝 */
+  .nhead input.n-title { order: 5; flex: 1 1 100%; min-width: 0; }
+  .nhead .n-del { margin-left: auto; }
+  /* 칸 제목 옆 작은 글씨는 아래 줄로 */
+  .box h3 > small { flex-basis: 100%; margin-left: 0; }
+}
 </style>
 </head>
 <body>
@@ -1340,7 +1353,7 @@ function renderOpinion() {
   // 뉴스 탭과 같은 내 키워드 줄 → 신문사 고르기 → 검색
   inSec = kwRow(inSec, state.sec === "전체" ? "모든 글" : state.sec + " 전체");
   if (state.kwSel && !inSec.length) { $("chips").innerHTML = ""; return kwEmpty(state.sec === "전체" ? "사설·칼럼" : state.sec); }
-  pressPicker(countBy(inSec, a => [a.press]), inSec.length);
+  pressPicker(countBy(inSec, a => [a.press]), inSec.length, { noSearch: true });
   showList(searchSort(inSec.filter(a => state.chip === "전체" || a.press === state.chip)));
 }
 // 신문사 고르기: 칩을 다 늘어놓지 않고, 검색 + 가나다 사전식 목록
@@ -2789,7 +2802,7 @@ function mineHtml() {
   const areas = paperAreas(), paps = favPap().filter(a => areas[a]);
   const empty = !inds.length && !outs.length && !paps.length;
   const sub = (title, lib, body) => `<div class="mine-sec"><div class="mine-h"><b>${title}</b><a href="#" data-lib="${lib}">더 보기 ›</a></div>${body}</div>`;
-  return `<div class="box mine-box"><h3>⭐ 내 모아보기</h3>
+  return `<div class="box mine-box"><h3 class="hm-title">⭐ 내 모아보기</h3>
     ${empty ? `<p class="help">자료실에서 지표·해외 매체·논문 분야의 ☆를 누르면 여기에 모여요.</p><div class="ai-key"><button class="btn sm" data-lib="indicators">📈 지표 고르기</button><button class="btn sm" data-lib="foreign">🌐 매체 고르기</button><button class="btn sm" data-lib="papers">📚 논문 분야 고르기</button></div>` : ""}
     ${inds.length ? sub("내 지표", "indicators", `<ul class="mine-ind">${inds.slice(0, 8).map(x => `<li><span>${esc(x.name)}</span><b>${esc(fmtNum(x.value))}<small>${esc(unitOf(x).main)}</small></b>${x.change != null ? `<em class="${x.change > 0 ? "up" : x.change < 0 ? "down" : ""}">${x.change > 0 ? "▲" : x.change < 0 ? "▼" : "–"}${esc(fmtNum(Math.abs(x.change)))}</em>` : ""}</li>`).join("")}</ul>`) : ""}
     ${outs.length ? sub("내 해외 매체", "foreign", fo.length ? `<ul class="mini">${fo.map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.outlets.filter(o => outs.includes(o)).join(", "))} 인용</small></li>`).join("")}</ul>` : `<p class="help">오늘은 내 매체를 인용한 기사가 없어요.</p>`) : ""}
@@ -2839,7 +2852,7 @@ function renderHome() {
   // ② 이슈 랭킹 (정치·경제·세계) + 팔로우업
   const rk = dd.issue_rank || [];
   const rsec = state.rankSec || "전체";
-  const rlist = rk.filter(x => rsec === "전체" || x.section === rsec).slice(0, 10);
+  const rall = rk.filter(x => rsec === "전체" || x.section === rsec); const rlist = state.rankAll ? rall : rall.slice(0, 10);
   const follows = myFollows(); const fset = new Set(follows.map(f => f.id));
   const ind = [...((dd.indicators || {}).kr || []), ...((dd.indicators || {}).us || [])];
   const rankRow = (x, i) => {
@@ -2883,14 +2896,14 @@ function renderHome() {
   };
   const rankHtml = `<div class="box"><h3 class="hm-title">오늘의 이슈 랭킹 <small>분야별 · 여러 언론사가 함께 다룬 순서${dd.generated_at ? ` · ${new Date(dd.generated_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })} 업데이트` : ""}</small></h3>
     ${rk.length ? `<div class="chipsrow rk-cats">${["전체", "정치", "경제", "세계", "사회", "IT/과학", "생활/문화"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
-      <div class="ranks">${rlist.map(rankRow).join("")}</div><p class="note">이슈를 누르면 팔로우업(언론사별 보도·보도량 추이·관련 지표·AI 설명)이 열려요.</p>`
+      <div class="ranks">${rlist.map(rankRow).join("")}</div>${rall.length > 10 ? `<button class="btn rk-more" data-rkmore="1">${state.rankAll ? "▲ 10위까지만 보기" : `▼ 11~${rall.length}위 더 보기`}</button>` : ""}<p class="note">이슈를 누르면 팔로우업(언론사별 보도·보도량 추이·관련 지표·AI 설명)이 열려요.</p>`
       : `<p class="help">${dd.issue_rank === undefined ? "새 수집부터 보여요." : "오늘은 여러 언론사가 함께 다룬 이슈가 아직 없어요."}</p>`}</div>`;
 
   // ③ 팔로우 중인 이슈
   if (follows.length && poolCache.date !== dd.date) loadPool();
   const followHtml = follows.length ? `<div class="box"><h3 class="hm-title">팔로우 중인 이슈 <small>오늘 나온 후속 보도</small></h3>
     ${follows.map(f => { const m = followMatches(f); return `<div class="fi"><div class="fi-h" data-fitoggle="1"><b>${esc(f.label)}</b><span class="cnt">${m.length}건</span><span class="arrow">▼</span></div>
-      <div class="fi-m">${esc(f.since)}부터 · 오늘 ${m.length}건</div>
+      <div class="fi-m">${esc(f.since)}부터 팔로우 중</div>
       <div class="fi-b">${m.length ? m.slice(0, 5).map(a => `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}<small>${esc(a.press)}</small></a>`).join("") : `<p class="help" style="margin:4px 0 0">오늘은 후속 보도가 없어요.</p>`}<button class="btn sm" data-unfollow="${f.id}">그만 보기</button></div></div>`; }).join("")}</div>` : `<div class="box"><h3 class="hm-title">팔로우 중인 이슈</h3><p class="help">위 랭킹에서 이슈를 누르고 ⭐ 이 이슈 팔로우를 눌러 보세요. 그 이슈의 후속 보도가 매일 여기에 모여서, 사건이 어떻게 흘러가는지 계속 따라갈 수 있어요.</p></div>`;
 
 
@@ -2939,8 +2952,8 @@ function renderHome() {
     </div>
   </section>`;
    $("topbox").innerHTML = `<div class="home-grid">
-<div class="home-main"><div class="hm-op">${opHtml}</div><div class="hm-rank">${rankHtml}</div><div class="hm-rec">${recHtml}</div></div>
-<aside class="home-side"><div class="hm-follow">${followHtml}</div><div class="hm-mine">${mineHtml()}</div></aside>
+<div class="home-main"><div class="hm-op">${opHtml}</div><div class="hm-rank">${rankHtml}</div></div>
+<aside class="home-side"><div class="hm-follow">${followHtml}</div><div class="hm-mine">${mineHtml()}</div><div class="hm-rec">${recHtml}</div></aside>
   </div>`;
 }
 $("topbox").addEventListener("click", e => {
@@ -2957,7 +2970,8 @@ $("topbox").addEventListener("click", e => {
   const ot = q("[data-optog]"); if (ot) { state.opTog = state.opTog === ot.dataset.optog ? null : ot.dataset.optog; render(); return; }
   const rt = q("[data-opretry]"); if (rt) { delete aiErr[rt.dataset.opretry]; render(); return; }
   const gr = q("[data-gork]"); if (gr) { e.preventDefault(); state.rankSec = "전체"; state.rankOpen = gr.dataset.gork; render(); document.querySelector(".rk.open")?.scrollIntoView({ block: "start" }); return; }
-  const rs = q("[data-rsec]"); if (rs) { state.rankSec = rs.dataset.rsec; render(); return; }
+  const rs = q("[data-rsec]"); if (rs) { state.rankSec = rs.dataset.rsec; state.rankAll = false; render(); return; }
+  if (q("[data-rkmore]")) { state.rankAll = !state.rankAll; render(); return; }
   const rkh = q("[data-rk]"); if (rkh) { state.rankOpen = state.rankOpen === rkh.dataset.rk ? null : rkh.dataset.rk; render(); return; }
   const rank = id => (d().issue_rank || []).find(x => x.id === id);
   const fo = q("[data-follow]"); if (fo) { toggleFollow(rank(fo.dataset.follow)); return; }
@@ -2997,7 +3011,7 @@ const TOUR = [
   { sel: ".tab-pick", before: () => tourView("news"), title: "분야 고르기", text: "보고 싶은 분야만 남기고 나머지는 가릴 수 있어요. 가린 분야는 '전체'와 키워드 결과에서도 빠져요." },
   { sel: ".kwrow", before: () => tourView("news"), title: "내 키워드 · 언론사 · 검색", text: "낱말을 넣으면 그 낱말이 든 기사만 모여요(×로 지우기). 아래에서 언론사를 검색해 고르거나 기사 제목을 검색할 수도 있어요. 사설·칼럼 탭에도 똑같이 있어요." },
   { sel: "#openSettings", before: () => tourView("news"), title: "키워드 설정", text: "키워드 정리, 🤖 AI와 대화하며 키워드 찾기, 관심 분야 논문 고르기를 여기서 해요." },
-  { sel: ".libnav", before: () => tourView("indicators"), title: "자료실", text: "경제지표·해외 인용 기사·논문을 원자료로 확인하는 곳이에요. 위 버튼으로 바꿔 보고, ☆를 누르면 오늘 한눈에 '내 모아보기'에 모여요. 논문은 📌로 노트에 담을 수 있어요." },
+  { sel: "#tabs", before: () => tourView("indicators"), title: "자료실", text: "경제지표·해외 인용 기사·논문을 원자료로 확인하는 곳이에요. 이 버튼으로 바꿔 보고, ☆를 누르면 오늘 한눈에 '내 모아보기'에 모여요. 논문은 📌로 노트에 담을 수 있어요." },
   { sel: '#views [data-view="notes"]', before: () => tourView("home"), title: "이슈 노트", text: "읽은 기사를 담고 요약과 내 생각을 적는 곳이에요. 여기서 시작해 보세요." },
 ];
 let tourI = -1;

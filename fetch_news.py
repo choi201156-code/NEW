@@ -1278,13 +1278,15 @@ def fetch_area_papers(key, today):
     out = {}
     for area, terms in AREA_PAPER_TERMS.items():
         search = " OR ".join(f'"{t}"' if " " in t else t for t in terms)
-        row = {"terms": terms, "recent": [], "cited": []}
+        row = {"terms": terms, "recent": [], "cited": [], "v": 2}
+        # 정식 학술지에 실린 영어 논문만 (기관 저장소의 학위·과제물, 학술지 표지 같은 항목 제외)
+        q = "type:article,is_paratext:false,language:en,primary_location.source.type:journal"
         try:
             row["recent"] = [paper_row(w) for w in openalex_get({
-                "search": search, "filter": f"from_publication_date:{day(30)},to_publication_date:{day(0)}",
+                "search": search, "filter": f"{q},from_publication_date:{day(30)},to_publication_date:{day(0)}",
                 "sort": "publication_date:desc", "per-page": 8, "select": OPENALEX_SELECT}, key).get("results", [])]
             row["cited"] = [paper_row(w) for w in openalex_get({
-                "search": search, "filter": f"from_publication_date:{day(365)}",
+                "search": search, "filter": f"{q},from_publication_date:{day(365)}",
                 "sort": "cited_by_count:desc", "per-page": 8, "select": OPENALEX_SELECT}, key).get("results", [])]
         except Exception as e:
             print(f"  영역 논문({area}) 실패: {e}")
@@ -1530,7 +1532,7 @@ def main():
 
         # 영역별 논문: 같은 날 이미 모았으면 다시 부르지 않음 (하루 한 번)
         prev_day = load_day(DATA_DIR / f"{result['date']}.json") or {}
-        if prev_day.get("area_papers") and not any(v.get("error") for v in prev_day["area_papers"].values()):
+        if prev_day.get("area_papers") and all(v.get("v") == 2 and not v.get("error") for v in prev_day["area_papers"].values()):
             result["area_papers"] = prev_day["area_papers"]
         else:
             print("영역별 논문 (OpenAlex)")
