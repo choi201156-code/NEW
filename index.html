@@ -232,7 +232,7 @@
   .ranks { display: grid; gap: 6px; }
   .rk { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
   .rk.open { border-color: var(--accent); }
-  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px 104px minmax(0, 1fr) 48px 105px; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
+  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) 48px 105px; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
   .rk-h:focus-visible { outline: 2px solid var(--accent); border-radius: 10px; }
   .rk-h .rank { color: var(--accent); font-weight: 700; } .rk-t { min-width: 0; } .rk-t b { display: block; }
   .rk-t small { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -246,8 +246,7 @@
   .rk-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .rk-thumb small { position: absolute; right: 4px; bottom: 3px; font-size: 9px; color: #fff; background: rgba(0,0,0,.45); padding: 0 4px; border-radius: 3px; }
   .rk-thumb em { font-style: normal; font-size: 10.5px; font-weight: 700; color: #4a4036; max-width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  @media (max-width: 560px) { .rk-h { grid-template-columns: 18px 76px 1fr; gap: 8px; } .rk-h .sec, .rk-h .n { grid-column: 3; justify-self: start; }
-    .rk-thumb { width: 76px; height: 56px; grid-row: span 3; } .rk-thumb i { font-size: 22px; } .rk-thumb em { font-size: 9.5px; max-width: 70px; } }
+  @media (max-width: 560px) { .rk-h { grid-template-columns: 18px 1fr; gap: 8px; } .rk-h .sec, .rk-h .n { grid-column: 2; justify-self: start; } .rk-h .rank { align-self: start; } }
   .rk-b { padding: 0 12px 12px; border-top: 1px solid var(--line); }
   .rk-sum { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--kh-red); }
   .rk-sum h4 { margin: 0 0 4px !important; color: var(--kh-red) !important; font-weight: 700 !important; }
@@ -2692,7 +2691,7 @@ function renderHome() {
     const hist = [...(x.history || []).map(h => h.count), x.count]; const hmax = Math.max(1, ...hist);
     const inds = ind.filter(t => x.terms.some(w => t.name.includes(w))).slice(0, 4);
     return `<div class="rk ${open ? "open" : ""}">
-      <button class="rk-h" data-rk="${x.id}"><span class="rank">${i + 1}</span>${issueThumb(x)}
+      <button class="rk-h" data-rk="${x.id}"><span class="rank">${i + 1}</span>
         <span class="rk-t"><b>${esc(x.label)}</b><span class="rk-lead">${esc(x.summary || x.title)}</span></span>
         <span class="sec" style="background:${COLOR(x.section)}">${x.section}</span>
         <span class="n">${x.press}개 언론사${x.new ? ` <em class="new">NEW</em>` : ""}${fset.has(x.id) ? " ⭐" : ""}</span></button>
