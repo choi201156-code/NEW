@@ -641,6 +641,13 @@ body.notepop header .tagline,
 body.notepop #views { display: none !important; }
 body.notepop .home-grid { display: block; }
 body.notepop .home-side { display: none; }
+/* ===== 홈: 큰 제목 + 분야 버튼 강조 ===== */
+.hm-title { font-size: 19px !important; font-weight: 800; color: var(--kh-blue, #0D326F); padding-left: 10px; border-left: 5px solid var(--kh-gold, #C0A353); line-height: 1.3; margin-bottom: 14px !important; }
+.hm-title small { font-size: 12px !important; font-weight: 400; }
+.rk-cats { gap: 8px !important; margin-bottom: 12px !important; }
+.rk-cats .chip { font-size: 15px; font-weight: 700; padding: 7px 16px; background: #fff; color: var(--kh-blue, #0D326F); border: 1.5px solid var(--kh-blue, #0D326F); }
+.rk-cats .chip.on { background: var(--kh-blue, #0D326F); color: #fff; }
+@media (max-width: 760px) { .hm-title { font-size: 17px !important; } .hm-title small { display: none; } .rk-cats .chip { font-size: 14px; padding: 6px 12px; } }
 
 </style>
 </head>
@@ -2818,7 +2825,7 @@ function renderHome() {
     </div>`;
   };
   const rankHtml = `<div class="box"><h3 class="hm-title">오늘의 이슈 랭킹 <small>분야별 · 여러 언론사가 함께 다룬 순서${dd.generated_at ? ` · ${new Date(dd.generated_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })} 업데이트` : ""}</small></h3>
-    ${rk.length ? `<div class="chipsrow">${["전체", "정치", "경제", "세계", "사회", "IT/과학", "생활/문화"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
+    ${rk.length ? `<div class="chipsrow rk-cats">${["전체", "정치", "경제", "세계", "사회", "IT/과학", "생활/문화"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
       <div class="ranks">${rlist.map(rankRow).join("")}</div><p class="note">이슈를 누르면 팔로우업(언론사별 보도·보도량 추이·관련 지표·AI 설명)이 열려요.</p>`
       : `<p class="help">${dd.issue_rank === undefined ? "새 수집부터 보여요." : "오늘은 여러 언론사가 함께 다룬 이슈가 아직 없어요."}</p>`}</div>`;
 
