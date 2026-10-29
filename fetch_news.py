@@ -848,7 +848,7 @@ SECTION_SEEDS = {"정치": ["대통령", "국회", "여야", "정부"], "경제"
                  "사회": ["경찰", "검찰", "법원", "교육", "노동", "의료"], "IT/과학": ["AI", "반도체", "과학", "플랫폼"],
                  "생활/문화": ["문화", "건강", "여행"]}
 POOL_SECTIONS = ("정치", "경제", "세계", "사회", "IT/과학", "생활/문화")
-RANK_SECTIONS = ("정치", "경제", "세계")
+RANK_SECTIONS = ("정치", "경제", "세계", "사회", "IT/과학", "생활/문화")
 
 
 def compact(a):
@@ -881,7 +881,7 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
              for x in pool_items if x["s"] in RANK_SECTIONS]
     fmap = {a["url"]: a.get("outlets", []) for a in foreign}
     out = []
-    for c in cluster_titles(items, min_press=3, limit=20)[:15]:
+    for c in cluster_titles(items, min_press=3, limit=30)[:25]:
         mem = sorted((items[i] for i in c["members"]), key=lambda a: a["published"], reverse=True)
         secs = Counter(a["section"] for a in mem)
         terms = c["terms"][:4]
