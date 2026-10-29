@@ -927,10 +927,12 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
             "new": bool(hist) and hist[-1]["count"] == 0, "summary": "", "_mem": mem,
         })
     if ai_key and out:
+        out = review_issue_clusters(out, fmap, ai_key, ai_model)  # AI 검수: 섞인 기사·모음·홍보성 소식 걸러내기
+    if ai_key and out:
         for b in range(0, len(out), 5):
             chunk = list(enumerate(out))[b:b + 5]
             try:
-                lines = "\n".join(f'{i}. [{x["section"]}] 핵심어: {x["label"]} / 대표 제목: {x["title"]} / 다른 제목: '
+                lines = "\n".join(f'{i}. [{x["section"]}] 핵심어: {x["label"]}{" / 중심 사건: " + x["event"] if x.get("event") else ""} / 대표 제목: {x["title"]} / 다른 제목: '
                                   + " | ".join(a["title"] for a in x["articles"][1:4]) for i, x in chunk)
                 res = parse_json(claude(
                     "오늘 한국 뉴스에서 여러 언론사가 함께 다룬 사안들이야. 각 사안에 대해 "
@@ -947,114 +949,107 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
         out = merge_same_issues(out, fmap, ai_key, ai_model)
     for x in out:
         x.pop("_mem", None)
+        x.pop("_keep", None)
     return out
 
 
-PHOTO_CACHE = DATA_DIR / "photo-cache.json"
+def refresh_issue(x, mem, fmap):
+    """검수로 기사 목록이 바뀐 이슈의 언론사 수·기사 수·대표 기사·해외 인용·분야를 다시 계산"""
+    mem = sorted(mem, key=lambda a: a["published"], reverse=True)
+    seen, arts = set(), []
+    for a in mem:
+        if a["press"] not in seen:
+            seen.add(a["press"])
+            arts.append({"title": a["title"], "url": a["url"], "press": a["press"], "published": a["published"]})
+    keep = x.get("_keep") or []
+    rep_a = max(mem, key=lambda a: sum(1 for w in keep if w.lower() in a["title"].lower())) if keep else mem[0]
+    secs = Counter(a["section"] for a in mem)
+    x.update(_mem=mem, press=len(seen), count=len(mem), articles=arts[:12], title=rep_a["title"], url=rep_a["url"],
+             outlets=Counter(o for a in mem for o in fmap.get(a["url"], [])).most_common(6),
+             # 분야는 build_issue_rank와 같은 기준 (실적·시황 기사가 절반 이상이면 '경제')
+             section="경제" if sum(1 for a in mem if ROUTINE_RE.search(a["title"])) * 2 >= len(mem) else secs.most_common(1)[0][0])
+    return x
 
 
-UTM = "utm_source=issue_tracking&utm_medium=referral"
-
-
-def photo_search(query, locale_ko=False):
-    """무료 사진 검색 → [{pid, src, by, by_url, page, site, alt, dl}] (Unsplash 키가 있으면 Unsplash, 없으면 Pexels)"""
-    uk, pk = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip(), os.environ.get("PEXELS_API_KEY", "").strip()
-    if uk:
-        params = {"query": query, "per_page": 8, "orientation": "landscape", "content_filter": "high"}
-        if locale_ko:
-            params["lang"] = "ko"
-        data = http_json("https://api.unsplash.com/search/photos?" + urllib.parse.urlencode(params),
-                         {"Authorization": f"Client-ID {uk}", "Accept-Version": "v1", "User-Agent": "issue-tracking"}, timeout=15)
-        return [{"pid": "u" + p["id"], "src": p["urls"].get("small") or p["urls"].get("thumb"),
-                 "by": p.get("user", {}).get("name", ""), "by_url": p.get("user", {}).get("links", {}).get("html", "") + "?" + UTM,
-                 "page": "https://unsplash.com/?" + UTM, "site": "Unsplash", "alt": p.get("alt_description") or "",
-                 "dl": p.get("links", {}).get("download_location", "")} for p in data.get("results", [])]
-    if pk:
-        params = {"query": query, "per_page": 8, "orientation": "landscape"}
-        if locale_ko:
-            params["locale"] = "ko-KR"
-        data = http_json("https://api.pexels.com/v1/search?" + urllib.parse.urlencode(params),
-                         {"Authorization": pk, "User-Agent": "issue-tracking"}, timeout=15)
-        return [{"pid": "p" + str(p["id"]), "src": p["src"].get("medium") or p["src"].get("small"),
-                 "by": p.get("photographer", ""), "by_url": p.get("photographer_url", ""), "page": p.get("url", ""),
-                 "site": "Pexels", "alt": p.get("alt", ""), "dl": ""} for p in data.get("photos", [])]
-    return None
-
-
-def add_issue_photos(rank, ai_key, ai_model):
-    """이슈 랭킹마다 썸네일 사진 붙이기: ChatKHU가 영어 검색어를 만들고 → 무료 사진 사이트(Unsplash/Pexels)에서 찾음.
-    같은 이슈(id)는 저장해 둔 사진을 다시 씀. 키가 없거나 실패하면 사진 없이 둠(사이트는 아이콘 썸네일로 대체)."""
-    if not rank or not (os.environ.get("UNSPLASH_ACCESS_KEY", "").strip() or os.environ.get("PEXELS_API_KEY", "").strip()):
-        return
-    try:
-        cache = json.loads(PHOTO_CACHE.read_text(encoding="utf-8"))
-    except Exception:
-        cache = {}
-    used = set()
-    need = []
-    for x in rank:
-        c = cache.get(x["id"])
-        if c and c.get("pid") not in used:
-            x["photo"] = {k: c[k] for k in ("src", "by", "by_url", "page", "site", "alt") if k in c}
-            used.add(c.get("pid"))
-        else:
-            need.append(x)
-    if not need:
-        return
-    # 1) 검색어 만들기 (ChatKHU, 한 번에)
-    queries = {}
-    if ai_key:
+def review_issue_clusters(out, fmap, ai_key, ai_model, batch=4, sample=20):
+    """AI 검수: 규칙이 묶은 이슈마다 기사 제목을 보여주고
+    ① 중심 사건 ② 그 사건과 다른 기사 ③ 하나의 사건이라 보기 어려운 '모음' ④ 보도자료성 홍보 소식인지 판정 →
+    다른 기사는 빼고, 모음·홍보는 랭킹에서 제외하고, 언론사 수로 다시 정렬.
+    AI가 실패한 묶음은 그대로 둠 (수집은 멈추지 않음)."""
+    kept, dropped = [], []
+    for b in range(0, len(out), batch):
+        chunk = list(enumerate(out))[b:b + batch]
+        samples = {}
+        for i, x in chunk:
+            seen_t, seen_p, pick = set(), set(), []
+            for pass_ in (0, 1):  # 먼저 언론사가 겹치지 않게, 모자라면 나머지에서
+                for a in x["_mem"]:
+                    t = re.sub(r"\s+", " ", a["title"]).strip()
+                    if t in seen_t or (pass_ == 0 and a["press"] in seen_p):
+                        continue
+                    seen_t.add(t); seen_p.add(a["press"]); pick.append(t)
+                    if len(pick) >= sample:
+                        break
+                if len(pick) >= sample:
+                    break
+            samples[i] = pick
+        lines = []
+        for i, x in chunk:
+            lines.append(f"[묶음 {i}] 규칙이 뽑은 핵심어: {', '.join(x['terms'][:4])}")
+            lines += [f"  {i}-{j}. {t}" for j, t in enumerate(samples[i])]
         try:
-            lines = "\n".join(f'{i}. [{x["section"]}] {x["label"]} / {x.get("summary") or x["title"]}' for i, x in enumerate(need))
             res = parse_json(claude(
-                "아래 뉴스 이슈마다 무료 사진 사이트에서 썸네일 사진을 찾을 영어 검색어를 만들어줘.\n"
-                "- 2~4단어, 사물·장소·상징 위주 (예: 'semiconductor chip', 'stock market chart', 'courthouse columns', 'ballot box')\n"
-                "- 사람 이름, 정치인, 특정 회사 로고는 넣지 마. 사람 얼굴이 중심이 되는 사진이 나올 단어도 피해.\n"
-                '출력은 JSON 객체 하나만: {"번호": "검색어", ...}\n\n' + lines,
-                ai_key, ai_model, max_tokens=600))
-            queries = {int(k): str(v)[:60] for k, v in (res or {}).items() if str(k).isdigit()}
+                "아래는 뉴스 제목의 단어가 겹친다는 규칙으로 묶은 '오늘의 이슈' 후보들이야. 단어만 겹치고 실제로는 다른 사건인 기사가 섞였을 수 있어. "
+                "묶음마다 다음을 판정해줘.\n"
+                "- event: 가장 많은 제목이 다룬 하나의 구체적 사건 (누가·무엇을, 20자 이내)\n"
+                "- keep: 그 사건 제목에 실제로 들어 있는 고유한 단어 1~3개 (회사·인물·기관·지명·법안·고유 사건명). "
+                "'실적', '환율', 'AI', '투자', '대통령'처럼 여러 사건에 두루 쓰는 일반어는 넣지 마.\n"
+                "- off: 중심 사건과 다른 사건을 다룬 제목 번호 (예: 다른 회사의 실적, 다른 나라의 선거, 다른 발언)\n"
+                "- kind: single(대부분 한 사건) / mixed(여러 사건이 섞였지만 중심 사건이 분명함) / "
+                "none(여러 회사 실적 모음, 'AI 투자' 같은 넓은 주제처럼 하나의 사건이라 보기 어려움) / "
+                "promo(기업·기관이 낸 보도자료를 여러 언론이 받아쓴 홍보성 소식: 창립 기념, 수상, 제품·서비스 출시 홍보, "
+                "협약·후원, 사회공헌·ESG 성과 홍보 등. 단, 사회적 파장이 큰 정책·사건·대형 거래는 promo가 아님)\n"
+                "- 확실하지 않은 제목은 off에 넣지 말고, 확실하지 않으면 kind는 single로 해.\n"
+                '출력은 JSON 객체 하나만: {"묶음번호": {"event": "...", "keep": ["..."], "off": [번호], "kind": "single"}, ...}\n\n'
+                + "\n".join(lines), ai_key, ai_model, max_tokens=1500))
         except Exception as e:
-            print(f"  사진 검색어(AI) 실패: {e}")
-            AI.setdefault("errors", []).append(f"사진 검색어 만들기 실패: {str(e)[:150]}")
-    # 2) 사진 사이트에서 찾기
-    FALLBACK = {"정치": "government building", "경제": "business finance", "세계": "world map globe", "사회": "city street"}
-    for i, x in enumerate(need):
-        q = queries.get(i)
-        # 검색어 후보: AI 검색어 → 한국어 핵심어 → 분야 대표 사진 (앞에서 못 찾으면 다음 후보로)
-        tries = [(q, False)] if q else []
-        tries.append((" ".join(x.get("terms", [])[:2]) or x["label"], True))
-        tries.append((FALLBACK.get(x.get("section"), "newspaper"), False))
-        ph, query = None, ""
-        for query, ko in tries:
-            try:
-                photos = photo_search(query, locale_ko=ko) or []
-            except Exception as e:
-                print(f"  사진 찾기 실패({x['label']} / {query}): {e}")
-                continue
-            ph = next((p for p in photos if p["pid"] not in used and p.get("src")), None)
-            if ph:
-                break
-            print(f"  사진 없음({x['label']} / {query}) → 다음 검색어")
-            time.sleep(0.2)
-        if not ph:
+            print(f"  이슈 검수(AI) 실패: {e}")
+            AI.setdefault("errors", []).append(f"이슈 랭킹 검수 실패({b + 1}~{b + batch}번 묶음): {str(e)[:150]}")
+            kept += [x for _, x in chunk]
             continue
-        used.add(ph["pid"])
-        if ph.get("dl"):  # Unsplash 규칙: 사진을 쓰면 다운로드 기록을 남김
-            try:
-                http_json(ph["dl"], {"Authorization": f"Client-ID {os.environ.get('UNSPLASH_ACCESS_KEY', '').strip()}", "Accept-Version": "v1"}, timeout=10)
-            except Exception:
-                pass
-        info = {k: ph[k] for k in ("src", "by", "by_url", "page", "site", "alt")}
-        info["alt"] = info["alt"] or query
-        x["photo"] = info
-        cache[x["id"]] = {**info, "pid": ph["pid"], "q": query}
-        time.sleep(0.2)
-    # 최근 300개만 보관
-    if len(cache) > 300:
-        cache = dict(list(cache.items())[-300:])
-    PHOTO_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    PHOTO_CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
-    print(f"  이슈 사진 {sum(1 for x in rank if x.get('photo'))}/{len(rank)}개")
+        for i, x in chunk:
+            r = (res or {}).get(str(i)) if isinstance(res, dict) else None
+            if not isinstance(r, dict):
+                kept.append(x)
+                continue
+            kind = str(r.get("kind", "single")).strip().lower()
+            if kind in ("none", "promo"):
+                dropped.append(f"{', '.join(x['terms'][:3])}({'모음' if kind == 'none' else '홍보성'})")
+                continue
+            pick = samples[i]
+            off_t = set()
+            for j in r.get("off") or []:
+                m = re.search(r"(\d+)$", str(j))
+                if m and int(m.group(1)) < len(pick):
+                    off_t.add(pick[int(m.group(1))])
+            low = [t.lower() for t in pick]
+            keep = [str(w).strip() for w in (r.get("keep") or []) if str(w).strip()]
+            keep = [w for w in keep if len(w) >= 2 and any(w.lower() in t for t in low)][:3]
+            norm = lambda t: re.sub(r"\s+", " ", t).strip()
+            mem = [a for a in x["_mem"] if norm(a["title"]) not in off_t
+                   and (not keep or any(w.lower() in a["title"].lower() for w in keep))]
+            if len({a["press"] for a in mem}) < 3:
+                dropped.append(f"{', '.join(x['terms'][:3])}(남은 기사 부족)")
+                continue
+            x["_keep"] = keep
+            x["event"] = str(r.get("event") or "")[:40]
+            if len(mem) != len(x["_mem"]):
+                print(f"  검수: {', '.join(x['terms'][:3])} → 기사 {len(x['_mem'])}→{len(mem)}개 (중심: {x['event']})")
+            kept.append(refresh_issue(x, mem, fmap))
+    if dropped:
+        print(f"  검수로 뺀 묶음 {len(dropped)}개: {' / '.join(dropped)}")
+    kept.sort(key=lambda x: (x["press"], x["count"]), reverse=True)
+    return kept
 
 
 def merge_same_issues(out, fmap, ai_key, ai_model):
@@ -1063,10 +1058,12 @@ def merge_same_issues(out, fmap, ai_key, ai_model):
     if len(out) < 2:
         return out
     try:
-        lines = "\n".join(f'{i}. [{x["section"]}] {x["label"]} / {x["summary"] or x["title"]}' for i, x in enumerate(out))
+        lines = "\n".join(f'{i}. [{x["section"]}] {x["label"]} / {x["summary"] or x["title"]} / 대표 제목: {x["title"]}' for i, x in enumerate(out))
         res = parse_json(claude(
             "아래는 오늘 뉴스에서 여러 언론사가 함께 다룬 이슈 목록이야. 사실상 같은 사건·사안을 다룬 번호끼리 묶어줘.\n"
             "- 같은 사건을 다른 표현으로 쓴 것(예: '코스피 6000선 탈환'과 '코스피 6000선 회복')만 묶어.\n"
+            "- 같은 날 같은 시장의 같은 움직임은 같은 사건이야 (예: '코스피 급등·사이드카 발동'과 '코스피 6000선 회복').\n"
+            "- 같은 회사의 같은 발표를 다른 측면에서 쓴 것도 같은 사건이야 (예: '삼성전자 3분기 실적'과 '삼성전자 메모리 수요 확대' 전망).\n"
             "- 주제만 비슷한 다른 사건(예: 서로 다른 회사의 실적 발표, 서로 다른 나라의 선거)은 묶지 마.\n"
             "- 확실하지 않으면 묶지 마.\n"
             '출력은 JSON 객체 하나만: {"groups": [[1, 7]]} (묶을 것이 없으면 {"groups": []})\n\n' + lines,
@@ -1504,7 +1501,6 @@ def main():
         today_titles = list(dict.fromkeys([x["t"] for x in pool_items] + day_titles(result)))
         result["trending"] = trending_terms(today_titles, [t for _, t in past])
         result["issue_rank"] = build_issue_rank(pool_items, result["foreign"], past, ai_key, ai_model)
-        add_issue_photos(result["issue_rank"], ai_key, ai_model)
 
         # 9) 사설 이슈 (구체적인 사안만, 오늘 기사 랭킹과 연결)
         op = result["opinion"]

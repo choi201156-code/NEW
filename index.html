@@ -245,9 +245,6 @@
   .rk-thumb { position: relative; }
   .rk-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .rk-thumb small { position: absolute; right: 4px; bottom: 3px; font-size: 9px; color: #fff; background: rgba(0,0,0,.45); padding: 0 4px; border-radius: 3px; }
-  .rk-thumb.has-photo i, .rk-thumb.has-photo em { visibility: hidden; }
-  .photo-credit { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; }
-  .photo-credit a { color: var(--muted); text-decoration: underline; }
   .rk-thumb em { font-style: normal; font-size: 10.5px; font-weight: 700; color: #4a4036; max-width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   @media (max-width: 560px) { .rk-h { grid-template-columns: 18px 76px 1fr; gap: 8px; } .rk-h .sec, .rk-h .n { grid-column: 3; justify-self: start; }
     .rk-thumb { width: 76px; height: 56px; grid-row: span 3; } .rk-thumb i { font-size: 22px; } .rk-thumb em { font-size: 9.5px; max-width: 70px; } }
@@ -581,12 +578,12 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
   header .top { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; padding: 10px 0; overflow: visible; border-bottom: 1px solid rgba(255, 255, 255, 0.25); }
   header .top .menu-btn { display: inline-flex; align-items: center; justify-content: center; order: 1; flex: none; width: 36px; min-height: 40px; padding: 0; margin-left: -6px; background: none; border: 0; border-radius: 0; box-shadow: none; color: #ffffff; font-size: 24px; font-weight: 900; line-height: 1; -webkit-text-stroke: 1.2px currentColor; cursor: pointer; }
   header .top .menu-btn:hover, header .top .menu-btn:active { background: none; }
-  header .top h1 { order: 2; flex: 1 1 auto; min-width: 0; font-size: 17px; margin: 0; white-space: nowrap; }
-  header .top input[type="date"] { order: 3; flex: none; width: 128px; min-height: 40px; font-size: 13px; padding: 4px 6px; }
+  header .top h1 { order: 2; flex: 1 1 auto; min-width: 0; font-size: 17px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  header .top input[type="date"] { order: 3; flex: none; width: 128px; min-height: 40px; font-size: 13px !important; padding: 4px 6px !important; }
   header .top #acctBtn { order: 4; flex: none; min-height: 40px; font-size: 13px; padding: 6px 10px; white-space: nowrap; }
 
   /* 원래 버튼 3개와 ? 는 모바일에서 숨김 (메뉴판에서 대신 눌러 줌) */
-  header .top #levelBtn, header .top #openAi, header .top #openSettings, header .top #helpBtn { display: none; }
+  header .top #levelBtn, header .top #openAi, header .top #openSettings, header .top #helpBtn, header .top #notePopBtn { display: none; }
 
   /* 소개 문구 + 아래 선, 탭은 가로 스크롤 */
   header .tagline { display: block; margin: 0; padding: 9px 0; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.25); }
@@ -623,6 +620,13 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
 
   /* 소개 문구와 탭 사이: 한 줄 간격은 위 padding이 담당하므로 탭 위 여백은 0 */
   header .views { padding-top: 0; }
+}
+/* 좁은 휴대폰(380px 이하): 로고·날짜·로그인이 한 줄에 들어가게 */
+@media (max-width: 380px) {
+  header .top { gap: 6px; }
+  header .top h1 { font-size: 16px; }
+  header .top input[type="date"] { width: 116px; font-size: 12px !important; padding: 4px !important; }
+  header .top #acctBtn { font-size: 12px; padding: 6px 8px; }
 }
 body.notepop header .top > *:not(h1),
 body.notepop header .tagline,
@@ -1085,9 +1089,7 @@ function issueThumb(x) {
   const icon = (THUMB_ICONS.find(([re]) => re.test(text)) || [, "📰"])[1];
   const [c1, c2] = THUMB_BG[x.section] || ["#f1f1ef", "#dcdcd8"];
   const tags = (x.terms || []).filter(w => w.length >= 2 && !/^\d/.test(w)).slice(0, 2);
-  const ph = x.photo && /^https:\/\//.test(x.photo.src || "") ? x.photo : null;
-  return `<span class="rk-thumb ${ph ? "has-photo" : ""}" style="--c1:${c1};--c2:${c2}" aria-hidden="true"><i>${icon}</i><em>${tags.map(t => `#${esc(t)}`).join(" ")}</em>${ph
-    ? `<img src="${esc(ph.src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-photo');if(this.nextElementSibling)this.nextElementSibling.remove();this.remove()"><small>${esc(ph.site || "Unsplash")}</small>` : ""}</span>`;
+  return `<span class="rk-thumb" style="--c1:${c1};--c2:${c2}" aria-hidden="true"><i>${icon}</i><em>${tags.map(t => `#${esc(t)}`).join(" ")}</em></span>`;
 }
 function render() {
   const d = state.data;
@@ -2716,7 +2718,6 @@ function renderHome() {
           </div>
         </div>
         ${inds.length ? `<div class="rk-inds"><h4>관련 지표</h4><ul>${inds.map(t => `<li><span class="nm">${esc(t.name)}</span><b>${esc(t.value)}${/=/.test(t.unit || "") ? "" : esc(t.unit)}</b><small>${/=/.test(t.unit || "") ? `기준 ${esc(t.unit)} · ` : ""}${esc(fmtPeriod(t.period))} · ${esc(t.agency)}</small></li>`).join("")}</ul></div>` : ""}
-        ${x.photo && x.photo.page ? `<p class="photo-credit">썸네일 사진: <a href="${esc(x.photo.by_url || x.photo.page)}" target="_blank" rel="noopener">${esc(x.photo.by || "작가")}</a> / <a href="${esc(x.photo.page)}" target="_blank" rel="noopener">${esc(x.photo.site || "Unsplash")}</a> (이슈를 상징하는 무료 사진이며 기사 속 장면이 아니에요)</p>` : ""}
         <div class="ai-key">
           <button class="btn ${fset.has(x.id) ? "" : "primary"}" data-follow="${x.id}">${fset.has(x.id) ? "⭐ 팔로우 중 (그만 보기)" : "⭐ 이 이슈 팔로우"}</button>
           <button class="btn" data-rknote="${x.id}">📒 이슈 노트에 담기</button>
