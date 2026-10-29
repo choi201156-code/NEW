@@ -1214,7 +1214,7 @@ function renderNews() {
   const favP = acct.get("fav_press", []);
   $("topbox").insertAdjacentHTML("beforeend", `<div class="favrow"><button class="btn sm" data-favpressonly="1">${state.favPressOnly ? "⭐ 내 매체만 보는 중 (누르면 전체)" : "⭐ 내 매체만 보기"} <small>${favP.length}곳</small></button> <span class="help">기사 아래 언론사 이름 옆 ☆를 누르면 내 매체로 담겨요.</span></div>`);
   const list2 = state.favPressOnly ? list.filter(a => favP.includes(a.press)) : list;
-  pressPicker(countBy(list2, a => [a.press]), list2.length, { all: "모든 언론사", dict: "기사를 낸 언론사", noSearch: true
+  pressPicker(countBy(list2, a => [a.press]), list2.length, { all: "모든 언론사", dict: "기사를 낸 언론사", noSearch: true });
 
   showList(searchSort(list2.filter(a => state.chip === "전체" || a.press === state.chip)));
 }
