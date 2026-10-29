@@ -595,6 +595,11 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
   /* 소개 문구와 탭 사이: 한 줄 간격은 위 padding이 담당하므로 탭 위 여백은 0 */
   header .views { padding-top: 0; }
 }
+body.notepop header .top > *:not(h1),
+body.notepop header .tagline,
+body.notepop #views { display: none !important; }
+body.notepop .home-grid { display: block; }
+body.notepop .home-side { display: none; }
 
 </style>
 </head>
@@ -604,6 +609,8 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
     <div class="top">
       <button class="btn menu-btn" id="menuBtn" type="button" aria-label="메뉴 열기" aria-expanded="false">☰</button>
       <h1><a href="#" data-act="gohome" style="text-decoration: none; color: inherit;"><span>이슈</span>트래킹</a></h1>
+            <button class="btn" id="notePopBtn" type="button" onclick="window.open(location.pathname + '#notepop', 'issuenote', 'width=460,height=720,left=' + (screen.width - 480) + ',top=60')">📝 노트 팝업</button>
+
       <button class="btn" id="levelBtn">📊 레벨테스트</button>
       <button class="btn" id="openAi">🤖 AI 추천</button>
       <button class="btn" id="openSettings">⚙ 분야·키워드 설정</button>
@@ -863,7 +870,9 @@ async function loadDates() {
     // 오늘 기사가 있으면 오늘, 아직 없으면 오늘 이전 중 가장 최근 날짜
     const pick = availDates.includes(today) ? today : ([...availDates].reverse().find(d => d <= today) || availDates[availDates.length - 1]);
     $("date").value = pick;
+        if (location.hash === "#notepop") { document.body.classList.add("notepop"); state.view = "notes"; }
     await loadDay(pick);
+
   } catch {
     $("list").innerHTML = `<div class="empty">데이터를 불러오지 못했어요. 수집이 한 번 실행됐는지 확인해 주세요.</div>`;
   }
