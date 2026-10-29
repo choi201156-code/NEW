@@ -2425,9 +2425,9 @@ function renderHome() {
       }
       return `<div class="oprow ${open ? "on" : ""}"><button class="ophead" data-op="${i}" aria-expanded="${open}"><span class="oprank">${i + 1}</span><span class="opname">${esc(t)}</span><small>${x.papers}개 신문</small><span class="opchev">${open ? "▴" : "▾"}</span></button>${body}</div>`;
     };
-    opHtml = `<div class="box">${stNote}<h3>오늘 사설·칼럼 이슈 TOP ${iss.length} <small>누르면 설명이 펼쳐져요</small></h3>
+    opHtml = `<div class="box">${stNote}<h3>미디어가 주목한 오늘의 이슈 <small>신문 사설에서 공통된 키워드를 뽑아 신문별 논조를 정리해줘요</small></h3>
       <div class="oplist">${iss.map(row).join("")}</div></div>`;
-  } else opHtml = `<div class="box"><h3>오늘 사설·칼럼 이슈</h3><p class="help">${dd.issues === undefined ? "새 수집부터 보여요." : "아직 묶을 만큼 사설이 모이지 않았어요."}</p></div>`;
+  } else opHtml = `<div class="box"><h3>미디어가 주목한 오늘의 이슈</h3><p class="help">${dd.issues === undefined ? "새 수집부터 보여요." : "아직 묶을 만큼 사설이 모이지 않았어요."}</p></div>`;
 
   // ② 이슈 랭킹 (정치·경제·세계) + 팔로우업
   const rk = dd.issue_rank || [];
@@ -2531,8 +2531,8 @@ function renderHome() {
     </div>
   </section>`;
    $("topbox").innerHTML = `<div class="home-grid">
-    <div class="home-main"><div class="hm-rank">${rankHtml}</div><div class="hm-rec">${recHtml}</div></div>
-    <aside class="home-side"><div class="hm-op">${opHtml}</div><div class="hm-follow">${followHtml}</div></aside>
+<div class="home-main"><div class="hm-op">${opHtml}</div><div class="hm-rank">${rankHtml}</div><div class="hm-rec">${recHtml}</div></div>
+<aside class="home-side"><div class="hm-follow">${followHtml}</div></aside>
   </div>`;
 }
 $("topbox").addEventListener("click", e => {
@@ -2580,7 +2580,7 @@ const TOUR = [
     text: "여러 언론사가 함께 다룬 사건이 순서대로 모여 있어요. 눌러 보면 언론사별 보도와 흐름이 펼쳐져요." },
   { sel: "[data-follow]", before: () => { if (!document.querySelector(".rk.open")) { const h = document.querySelector(".ranks .rk-h"); if (h) h.click(); } },
     title: "팔로우", text: "이 버튼을 누르면 이 사건의 후속 보도가 매일 모여요." },
-  { sel: ".hm.op", title: "신문별 시각", text: "같은 사건을 신문마다 어떻게 보는지 사설로 비교할 수 있어요." },
+  { sel: ".hm-op", title: "신문별 시각", text: "같은 사건을 신문마다 어떻게 보는지 사설로 비교할 수 있어요." },
   { sel: '#views [data-view="notes"]', title: "이슈 노트", text: "읽은 기사를 담고 요약과 내 생각을 적는 곳이에요. 여기서 시작해 보세요." },
 ];
 let tourI = -1;
