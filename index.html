@@ -583,6 +583,19 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
   .nav-item { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 0; padding: 17px 24px; font: inherit; font-size: 16px; color: #ffffff; cursor: pointer; }
   .nav-item:active { background: rgba(255, 255, 255, 0.12); }
 }
+  /* ===== 모바일 헤더: 구분선 없애고 여백으로 띄우기 ===== */
+@media (max-width: 760px) {
+  /* 선 제거 */
+  header .top { border-bottom: 0; padding: 10px 0 0; }
+  header .tagline { border-bottom: 0; }
+
+  /* 로고 줄과 소개 문구 사이: 한 줄 간격 */
+  header .tagline { margin: 0; padding: 16px 0 16px; line-height: 1.5; }
+
+  /* 소개 문구와 탭 사이: 한 줄 간격은 위 padding이 담당하므로 탭 위 여백은 0 */
+  header .views { padding-top: 0; }
+}
+
 </style>
 </head>
 <body>
@@ -2663,34 +2676,57 @@ function welcomeInit() {
   notes.all = acct.get("issue_notes", {});
   loadDates();
 })();
-  document.getElementById('date').addEventListener('change', function(e) {
-  const selectedDate = e.target.value; 
-  if (selectedDate) {
-    state.currentDate = selectedDate; // 상태 변수명은 기존 코드에 맞게 확인
-    render(); // 화면 새로고침 함수
-  }
-});
+ 
 </script>
   <script>
 (function () {
   var mb = document.getElementById("menuBtn");
-  if (!hd || !mb) return;
-  function setOpen(on) {
-    hd.classList.toggle("menu-open", on);
-    mb.setAttribute("aria-expanded", on ? "true" : "false");
-    mb.textContent = on ? "✕" : "☰";
-    mb.setAttribute("aria-label", on ? "메뉴 닫기" : "메뉴 열기");
+  if (!mb) return;
+  var items = [["levelBtn", "레벨테스트"], ["openAi", "AI 추천"], ["openSettings", "분야·키워드 설정"], ["helpBtn", "사용법 다시 보기"]];
+
+  var ov = document.createElement("div");
+  ov.className = "nav-ov";
+  var dr = document.createElement("nav");
+  dr.className = "nav-dr";
+  dr.setAttribute("aria-label", "메뉴");
+  dr.innerHTML = '<div class="nav-top"><button type="button" class="nav-x" aria-label="메뉴 닫기">✕</button><span class="nav-logo"><b>이슈</b>트래킹</span></div><div class="nav-list"></div>';
+  var list = dr.querySelector(".nav-list");
+
+  function open() {
+    document.body.classList.add("nav-open");
+    document.body.style.overflow = "hidden";
+    mb.setAttribute("aria-expanded", "true");
   }
-  mb.addEventListener("click", function (e) { e.stopPropagation(); setOpen(!hd.classList.contains("menu-open")); });
-  // 메뉴 안의 버튼을 누르면 메뉴를 닫음
-  ["levelBtn", "openAi", "openSettings", "helpBtn"].forEach(function (id) {
-    var b = document.getElementById(id);
-    if (b) b.addEventListener("click", function () { setOpen(false); });
+  function close() {
+    document.body.classList.remove("nav-open");
+    document.body.style.overflow = "";
+    mb.setAttribute("aria-expanded", "false");
+  }
+
+  items.forEach(function (it) {
+    if (!document.getElementById(it[0])) return;
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "nav-item";
+    b.textContent = it[1];
+    b.addEventListener("click", function () {
+      close();
+      setTimeout(function () {
+        var target = document.getElementById(it[0]);
+        if (target) target.click();
+      }, 120);
+    });
+    list.appendChild(b);
   });
-  // 메뉴 바깥을 누르면 닫음
-  document.addEventListener("click", function (e) {
-    if (hd.classList.contains("menu-open") && !e.target.closest("header .top")) setOpen(false);
-  });
+
+  document.body.appendChild(ov);
+  document.body.appendChild(dr);
+
+  mb.addEventListener("click", function (e) { e.stopPropagation(); open(); });
+  ov.addEventListener("click", close);
+  dr.querySelector(".nav-x").addEventListener("click", close);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  window.addEventListener("resize", function () { if (window.innerWidth > 760) close(); });
 })();
 </script>
 </body>
