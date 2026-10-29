@@ -2471,7 +2471,7 @@ function renderHome() {
     </div>`;
   };
   const rankHtml = `<div class="box"><h3>오늘의 이슈 랭킹 <small>정치·경제·세계 · 여러 언론사가 함께 다룬 순서${dd.generated_at ? ` · ${new Date(dd.generated_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })} 업데이트` : ""}</small></h3>
-    ${rk.length ? `<div class="chipsrow">${["전체", "정치", "경제", "세계"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
+    ${rk.length ? `<div class="chipsrow">${["전체", "정치", "경제", "세계", "사회", "IT/과학", "생활/문화"].map(s => `<button class="chip ${s === rsec ? "on" : ""}" data-rsec="${s}">${s}</button>`).join("")}</div>
       <div class="ranks">${rlist.map(rankRow).join("")}</div><p class="note">이슈를 누르면 팔로우업(언론사별 보도·보도량 추이·관련 지표·AI 설명)이 열려요.</p>`
       : `<p class="help">${dd.issue_rank === undefined ? "새 수집부터 보여요." : "오늘은 여러 언론사가 함께 다룬 이슈가 아직 없어요."}</p>`}</div>`;
 
