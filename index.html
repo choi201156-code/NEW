@@ -1183,11 +1183,17 @@ function pressPicker(count, total, o = {}) {
   $("pressQ").oninput = hits; hits();
   $("chips").querySelector(".pp-dict").ontoggle = e => { state.pressDict = e.target.open; };
 }
+const fmtNum = v => {
+  const n = Number(String(v).replace(/,/g, ""));
+  if (v === "" || v == null || !isFinite(n)) return v;
+  const a = Math.abs(n), d = a >= 1000 ? 0 : a >= 100 ? 1 : 2;
+  return n.toLocaleString("ko-KR", { maximumFractionDigits: d });
+};
 
 function indTile(x) {
-  const chg = x.change == null ? "" : `<span class="chg ${x.change > 0 ? "up" : x.change < 0 ? "down" : ""}">${x.change > 0 ? "▲" : x.change < 0 ? "▼" : "–"} ${Math.abs(x.change)} (직전 ${x.prev})</span>`;
+  const chg = x.change == null ? "" : `<span class="chg ${x.change > 0 ? "up" : x.change < 0 ? "down" : ""}">${x.change > 0 ? "▲" : x.change < 0 ? "▼" : "–"} ${fmtNum(Math.abs(x.change))} (직전 ${fmtNum(x.prev)})</span>`;
   return `<div class="ind"><span class="nm">${esc(x.name)}</span>
-    <span class="val">${esc(x.value)}<small>${esc(x.unit)}</small></span>${chg}
+    <span class="val">${esc(fmtNum(x.value))}<small>${esc(x.unit)}</small></span>${chg}
     <span class="src">${esc(fmtPeriod(x.period))} 기준<br>발표 <a href="${esc(x.agency_url)}" target="_blank" rel="noopener">${esc(x.agency)}</a>
     · 데이터 <a href="${esc(x.source_url)}" target="_blank" rel="noopener">${esc(x.source)}</a><br>
     <a href="${naverSearch(x.name)}" target="_blank" rel="noopener">관련 뉴스 보기 ↗</a></span></div>`;
