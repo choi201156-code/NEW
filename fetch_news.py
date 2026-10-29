@@ -896,7 +896,9 @@ def build_issue_rank(pool_items, foreign, past_days, ai_key, ai_model):
         rep = items[c["rep"]]
         out.append({
             "id": hashlib.md5(" ".join(sorted(terms[:3])).encode()).hexdigest()[:10],
-            "label": " · ".join(terms[:3]), "terms": terms, "section": secs.most_common(1)[0][0],
+            "label": " · ".join(terms[:3]), "terms": terms,
+            # 실적·시황 기사가 절반 이상이면 회사가 IT 기업이어도 '경제'로 (네이버 섹션은 언론사마다 달라서)
+            "section": "경제" if sum(1 for a in mem if ROUTINE_RE.search(a["title"])) * 2 >= len(mem) else secs.most_common(1)[0][0],
             "press": c["press"], "count": len(mem), "title": rep["title"], "url": rep["url"],
             "articles": arts[:12], "outlets": oc.most_common(6), "history": hist,
             "new": bool(hist) and hist[-1]["count"] == 0, "summary": "", "_mem": mem,
