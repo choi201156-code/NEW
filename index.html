@@ -325,6 +325,11 @@
   .mini li { padding: 4px 0; border-top: 1px solid var(--line); } .mini li:first-child { border-top: 0; }
   .mini a { color: var(--text); text-decoration: none; } .mini a:hover { text-decoration: underline; }
   .mini small { color: var(--muted); margin-left: 4px; }
+    /* 논문 분야 제목: 별을 제목 바로 옆에 붙이기 */
+  .box h3 { justify-content: flex-start; flex-wrap: wrap; gap: 4px 6px; }
+  .box h3 > .favbtn { padding: 0 !important; margin: 0 6px 0 0 !important; line-height: 1; font-size: 20px !important; flex: 0 0 auto; }
+  .box h3 > small { margin-left: auto; }
+
     .fi { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); margin-top: 8px; overflow: hidden; }
   .fi.open { border-color: var(--accent); }
   .fi-h { display: flex; align-items: center; gap: 8px; padding: 11px 12px; cursor: pointer; }
