@@ -360,6 +360,12 @@
   .kw button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
   .addrow { display: flex; gap: 6px; margin-bottom: 12px; }
   .addrow input { flex: 1; }
+    @media (max-width: 760px) {
+    .addrow.paperrow { flex-wrap: wrap; }
+    .addrow.paperrow input { flex: 1 1 100%; min-width: 0; }
+    .addrow.paperrow select { flex: 1 1 0; min-width: 0; }
+    .addrow.paperrow button { flex: none; }
+  }
   .steps { font-size: 13px; color: var(--muted); margin: 12px 0 0; padding-left: 18px; }
   .steps b { color: var(--text); }
   .toast { color: var(--accent); font-size: 13px; margin-left: 8px; }
@@ -1476,7 +1482,7 @@ async function searchPapers() {
 function paperSearchHtml() {
   const r = state.paperRes;
   return `<div class="box"><h3>📚 논문 검색 <small>OpenAlex · 전 세계 학술 논문. 영어로 찾으면 더 많이 나와요</small></h3>
-    <div class="addrow"><input id="paperQ" value="${esc(state.paperQ || "")}" placeholder="예: housing price, 저출생, large language model" autocomplete="off">
+    <div class="addrow paperrow"><input id="paperQ" value="${esc(state.paperQ || "")}" placeholder="예: housing price, 저출생, large language model" autocomplete="off">
       <select id="paperSort"><option value="relevance" ${state.paperSort === "relevance" || !state.paperSort ? "selected" : ""}>관련도순</option><option value="recent" ${state.paperSort === "recent" ? "selected" : ""}>최신순</option><option value="cited" ${state.paperSort === "cited" ? "selected" : ""}>인용 많은 순</option></select>
       <button class="btn primary" id="paperGo">검색</button></div>
     ${state.paperBusy ? `<p class="help">찾는 중…</p>` : state.paperErr ? `<p class="help" style="color:var(--l5)">${esc(state.paperErr)}</p>`
