@@ -806,7 +806,7 @@ body.notepop .home-side { display: none; }
           <p class="help" id="oxHelp"></p>
         </div>
         <button class="btn" id="keySave">저장</button>
-        <p class="help">키는 이 브라우저에만 저장되고, 선택한 AI 서버로만 전송돼요. 다른 사람과 같이 쓰는 컴퓨터에서는 저장하지 마세요.</p>
+        <p class="help">👤 로그인한 상태에서 저장하면 키가 내 계정에 저장돼, 다른 기기에서도 로그인만 하면 그대로 쓸 수 있어요. 로그아웃하면 이 브라우저에서는 키가 지워져요. 로그인하지 않으면 이 브라우저에만 저장돼요. 키는 선택한 AI 서버로만 전송돼요.</p>
       </div>
     </details>
     <div class="drop" id="drop">📎 학습자료를 여기에 끌어다 놓거나 클릭해서 선택<br><small>PDF · Word(.docx) · 텍스트(.txt, .md) · 이미지 — 한글(.hwp)은 PDF로 저장해서 넣어주세요</small></div>
@@ -893,7 +893,7 @@ create policy "own update" on public.user_data for update using (auth.uid() = us
     <h2 class="ph">👤 내 계정 <button class="btn sm" data-close="acctPanel">닫기 ✕</button></h2>
     <div id="acctOff"><p class="help">아직 이 사이트에 계정 기능이 연결되지 않았어요. 지금은 레벨·노트·팔로우가 <b>이 브라우저에</b> 저장돼요. (운영자: ⚙ 설정 → 👥 사용자 계정 기능 연결)</p></div>
     <div id="acctForm" hidden>
-      <p class="help">로그인하면 레벨, 이슈 노트, 팔로우, AI 대화 기록이 내 계정에 저장돼서 어느 기기에서든 이어서 볼 수 있어요. 이 브라우저에 있던 기록은 처음 로그인할 때 계정으로 옮겨져요.</p>
+      <p class="help">로그인하면 레벨, 이슈 노트, 팔로우, AI 대화 기록, AI 연결 키가 내 계정에 저장돼서 어느 기기에서든 이어서 볼 수 있어요. 이 브라우저에 있던 기록은 처음 로그인할 때 계정으로 옮겨져요.</p>
       <div class="ai-key">
         <input id="acctEmail" type="email" placeholder="이메일" autocomplete="email">
         <input id="acctPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
@@ -1739,7 +1739,7 @@ function showPreset(reset) {
   const pr = OX[$("oxPreset").value];
   if (reset || !$("oxBase").value) $("oxBase").value = pr.base;
   if (reset || !$("oxModel").value) $("oxModel").value = pr.model;
-  $("oxHelp").innerHTML = pr.help + " 키는 이 브라우저에만 저장돼요.";
+  $("oxHelp").innerHTML = pr.help + " 로그인한 상태에서 저장하면 키가 내 계정에 저장돼요.";
 }
 $("oxPreset").value = store.get("ox_preset") || "openai";
 $("oxKey").value = store.get("ox_key") || ""; $("oxBase").value = store.get("ox_base") || ""; $("oxModel").value = store.get("ox_model") || "";
@@ -1765,10 +1765,49 @@ $("keySave").onclick = () => {
   store.set("claude_key", $("apiKey").value.trim()); store.set("claude_model", $("model").value);
   store.set("ck_key", $("ckKey").value.trim()); store.set("ck_base", $("ckBase").value.trim()); store.set("ck_model", $("ckModel").value.trim());
   store.set("ox_preset", $("oxPreset").value); store.set("ox_key", $("oxKey").value.trim()); store.set("ox_base", $("oxBase").value.trim()); store.set("ox_model", $("oxModel").value.trim());
+  aiToAccount();   // 로그인 상태면 계정에도 저장 → 다른 기기에서도 같은 키
   keyState(); if (hasAiKey()) $("keyBox").open = false;
   if (state.view === "notes" && state.data) render();
 };
 $("model").onchange = () => store.set("claude_model", $("model").value);
+
+/* ---------- AI 연결 설정을 계정에 저장: 로그인하면 어느 기기에서든 같은 키를 씀 ---------- */
+const AI_STORE = ["ai_provider", "claude_key", "claude_model", "ck_key", "ck_base", "ck_model", "ox_preset", "ox_key", "ox_base", "ox_model"];
+const AI_SECRET = ["claude_key", "ck_key", "ox_key"];
+function aiSnapshot() { const o = {}; for (const k of AI_STORE) { const v = store.get(k); if (v) o[k] = v; } return o; }
+function aiFillForm() {
+  $("provider").value = store.get("ai_provider") || "chatku";
+  $("apiKey").value = store.get("claude_key") || ""; $("model").value = store.get("claude_model") || "claude-sonnet-5-5";
+  $("ckKey").value = store.get("ck_key") || ""; $("ckBase").value = store.get("ck_base") || ""; $("ckModel").value = store.get("ck_model") || "";
+  $("oxPreset").value = store.get("ox_preset") || "openai";
+  $("oxKey").value = store.get("ox_key") || ""; $("oxBase").value = store.get("ox_base") || ""; $("oxModel").value = store.get("ox_model") || "";
+  showPreset(false); showProvider(); keyState();
+}
+// 키를 저장할 때: 로그인 상태면 계정에도 저장 (acct.set → 노트 팝업 창에도 같이 반영)
+function aiToAccount() {
+  if (!acct.user) return;
+  acct.set("ai_cfg", aiSnapshot());
+  store.set("ai_from_acct", acct.user.id);
+}
+// 로그인했을 때: 계정에 저장된 설정을 이 브라우저로 불러옴. 계정엔 없고 이 브라우저에만 키가 있으면 계정으로 올림
+function aiFromAccount() {
+  if (!acct.user) return;
+  const saved = acct.blob.ai_cfg;
+  if (saved && AI_SECRET.some(k => saved[k])) {
+    for (const k of AI_STORE) store.set(k, saved[k] || "");
+    store.set("ai_from_acct", acct.user.id);
+    aiFillForm();
+  } else if (AI_SECRET.some(k => store.get(k))) {
+    aiToAccount();
+  }
+}
+// 로그아웃했을 때: 계정에서 불러온 키는 이 브라우저에서 지움 (같이 쓰는 컴퓨터 대비)
+function aiClearFromAccount() {
+  if (!store.get("ai_from_acct")) return;
+  for (const k of AI_SECRET) store.set(k, "");
+  store.set("ai_from_acct", "");
+  aiFillForm();
+}
 
 /* AI 호출 공통: Claude 직접 또는 챗쿠(팩트챗 게이트웨이, OpenAI 방식) */
 function chatkuUrl(base, path) {
@@ -2148,6 +2187,7 @@ const acct = {
       }
     }
     if (moved) { await this.push(); flash("이 브라우저의 기록을 내 계정으로 옮겼어요"); }
+    aiFromAccount();   // 계정에 저장된 AI 연결 키 불러오기
   },
   async init() {
     for (const k of ["issue_notes", "word_stops"]) if (!store.get("u_" + k) && store.get(k)) store.set("u_" + k, store.get(k));
@@ -2164,7 +2204,7 @@ const acct = {
         const was = this.user?.id;
         this.user = session?.user || null;
         if (this.user && this.user.id !== was) await this.pull();
-        if (!this.user) this.blob = {};
+        if (!this.user) { aiClearFromAccount(); this.blob = {}; }
         afterAccountChange();
       });
     } catch (e) { console.warn("계정 기능 연결 실패", e); }
