@@ -236,12 +236,12 @@
   .ranks { display: grid; gap: 6px; }
   .rk { border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
   .rk.open { border-color: var(--accent); }
-  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) 48px 105px; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
+  .rk-h { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) 64px 105px; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
   .rk-h:focus-visible { outline: 2px solid var(--accent); border-radius: 10px; }
   .rk-h .rank { color: var(--accent); font-weight: 700; } .rk-t { min-width: 0; } .rk-t b { display: block; }
   .rk-t small { display: block; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .rk-h .n { font-size: 12px; color: var(--muted); white-space: nowrap; }
-  .rk-h .sec { width: 44px; text-align: center; justify-self: center; white-space: nowrap; }
+  .rk-h .sec { min-width: 44px; width: auto; box-sizing: border-box; text-align: center; justify-self: center; white-space: nowrap; }   /* '생활/문화'처럼 긴 분야명도 칸 안에 */
 .rk-h .n { width: 105px; text-align: left; white-space: nowrap; }
   .new { font-style: normal; color: #fff; background: var(--accent); border-radius: 4px; padding: 0 5px; font-size: 10px; font-weight: 700; }
   .rk-thumb { width: 104px; height: 66px; border-radius: 9px; background: linear-gradient(135deg, var(--c1), var(--c2)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; overflow: hidden; }
@@ -771,7 +771,7 @@ body.notepop .home-side { display: none; }
             <input id="ckBase" placeholder="요청 주소 (챗쿠 API 안내에 나온 https://… 주소)" autocomplete="off">
           </div>
           <div class="ai-key">
-            <input id="ckModel" list="ckModels" placeholder="모델 이름 (예: claude-sonnet-5, gpt-5.5)" autocomplete="off">
+            <input id="ckModel" list="ckModels" placeholder="모델 이름 (비우면 claude-haiku-5-5)" autocomplete="off">
             <datalist id="ckModels"></datalist>
             <button class="btn" id="ckList">모델 목록 불러오기</button>
           </div>
@@ -1714,7 +1714,7 @@ const OX = {
 };
 const aiCfg = () => {
   const provider = store.get("ai_provider") || "chatku";
-  if (provider === "chatku") return { provider, key: store.get("ck_key") || "", base: store.get("ck_base") || state.cfg?.chatku_base || "", model: store.get("ck_model") || "claude-sonnet-5" };
+  if (provider === "chatku") return { provider, key: store.get("ck_key") || "", base: store.get("ck_base") || state.cfg?.chatku_base || "", model: store.get("ck_model") || "claude-haiku-5-5" };
   if (provider === "other") { const pr = store.get("ox_preset") || "openai";
     return { provider, preset: pr, key: store.get("ox_key") || "", base: store.get("ox_base") || OX[pr].base, model: store.get("ox_model") || OX[pr].model }; }
   return { provider, key: store.get("claude_key") || "", model: store.get("claude_model") || "claude-sonnet-5-5" };
@@ -1852,7 +1852,7 @@ async function blocksToText(content) {
 function aiError(status, msg, provider) {
   let m = `오류가 났어요 (HTTP ${status}): ${msg}`;
   if (status === 413 || /too long|too large|context|token/i.test(msg)) m = `자료가 너무 길어서 AI가 한 번에 못 읽었어요 (HTTP ${status}). 자료를 나눠서 넣거나 일부만 넣어 주세요.`;
-  if (status === 401 || status === 403) m = "API 키가 올바르지 않거나 권한이 없어요. 🔑 AI 연결 설정을 확인해 주세요.";
+  if (status === 401 || status === 403) m = `API 키가 올바르지 않거나 이 모델을 쓸 권한이 없어요 (HTTP ${status}: ${String(msg).slice(0, 120)}). 🔑 AI 연결 설정에서 키를 확인하고, '모델 목록 불러오기'로 쓸 수 있는 모델을 골라 주세요.`;
   else if (status === 402 || /credit|크레딧|balance|quota/i.test(msg)) m = provider === "chatku" ? "챗쿠 크레딧이 부족해요." : provider === "other" ? "이 AI 서비스의 사용량(크레딧)이 부족해요. 서비스 결제 화면을 확인해 주세요." : "API 크레딧이 부족해요. platform.claude.com → Billing에서 충전해 주세요.";
   else if (status === 429) m = "요청이 너무 많아요. 잠시 후 다시 시도해 주세요.";
   else if (status === 405 && provider !== "anthropic") m = "요청 주소가 AI API 주소가 아니에요 (HTTP 405). 챗쿠 웹사이트 주소(chat.khu.ac.kr)가 아니라, API 키 발급 화면에 나온 '요청 주소(Base URL)'를 넣어 주세요. GitHub Secrets의 CHATKU_BASE_URL과 같은 값이에요.";
@@ -2826,6 +2826,33 @@ function toggleFollow(x) {
   else { fs.push({ id: x.id, label: x.label, terms: x.terms.slice(0, 3), section: x.section, since: d().date }); flash("팔로우했어요. 다음 날부터 후속 보도를 모아 보여줘요"); }
   acct.set("follows", fs); render();
 }
+// 사설 이슈 팔로우: 이슈 이름의 낱말 가운데 이 이슈 사설에 많이 나오고 다른 사설엔 덜 나오는 말 3개를 추적어로 씀
+// (같은 사안이 이슈 랭킹에도 있으면 그 이슈의 추적어를 그대로 씀)
+function opFollowObj(x) {
+  const dd = d();
+  if (x.news) { const r = (dd.issue_rank || []).find(y => y.id === x.news.id); if (r && (r.terms || []).length) return { id: "op:" + x.issue, label: x.issue, terms: r.terms.slice(0, 3), section: r.section }; }
+  const ops = opinionItems(); const mine = new Set(x.ids || []);
+  const text = a => (a.title || "") + " " + (a.description || "");
+  const strip = w => w.replace(/(에서|으로|에게|까지|부터|처럼|이라|라는|하는|했다|한다|이다|은|는|이|가|을|를|의|에|로|와|과|도|만)$/, "");
+  const skip = new Set(["사설", "칼럼", "시론", "기고", "오피니언", "논설", "정부", "우리", "문제", "필요", "논란"]);
+  const words = [...new Set(x.issue.split(/[\s·,/()]+/).map(w => w.trim()).filter(w => w.length >= 2))];
+  // 이 이슈 사설 제목에 2번 이상 나온 낱말도 후보로 (예: '공급대책' 이슈 → '공급', '공공택지')
+  const cnt = new Map();
+  (x.ids || []).map(j => ops[j]).filter(Boolean).forEach(o => new Set((o.title || "").split(/[^가-힣A-Za-z0-9]+/).map(strip).filter(w => w.length >= 2 && !skip.has(w))).forEach(w => cnt.set(w, (cnt.get(w) || 0) + 1)));
+  const cands = [...cnt].filter(p => p[1] >= 2).map(p => p[0]);
+  const score = w => { let a = 0, b = 0; ops.forEach((o, j) => { if (text(o).includes(w)) { if (mine.has(j)) a++; else b++; } }); return a ? a / (1 + b) : 0; };
+  // 이슈 이름의 낱말을 먼저 쓰고, 3개가 안 되면 사설 제목 낱말로 채움
+  const rankBy = ws => ws.map(w => [w, score(w)]).filter(p => p[1] > 0).sort((p, q) => q[1] - p[1]).map(p => p[0]);
+  const terms = [...rankBy(words), ...rankBy(cands.filter(w => !words.includes(w)))].slice(0, 3);
+  return { id: "op:" + x.issue, label: x.issue, terms: terms.length ? terms : words.slice(0, 3), section: "사설" };
+}
+function opToNote(x) {
+  const date = d().date; const items = (notes.all[date] ||= { items: [] }).items;
+  const ops = opinionItems();
+  const it = newIssue(x.issue); it.summary = x.summary || "";
+  it.refs = (x.ids || []).map(j => ops[j]).filter(Boolean).slice(0, 5).map(a => ({ title: a.title, url: a.url, press: a.press }));
+  items.push(it); state.pinTarget = items.length - 1; notes.touch(date); flash("이슈 노트에 새 이슈로 담았어요");
+}
 function rankToNote(x) {
   const date = d().date; const items = (notes.all[date] ||= { items: [] }).items;
   const it = newIssue(x.label); it.summary = x.summary || "";
@@ -2862,8 +2889,10 @@ function renderHome() {
   if (iss.length) {
     const st = dd.ai_status;
     const stNote = st && st.errors && st.errors.length ? `<p class="note" style="color:var(--l5);margin-top:0">서버 AI(${esc(st.provider)} · ${esc(st.model)}) 분석 일부가 실패했어요: ${esc(st.errors[0])}</p>` : "";
+    const opFset = new Set(myFollows().map(f => f.id));
     const row = (x, i) => {
       const key = `op:${dd.date}:${x.issue}:${overallLevel() || 0}`;
+      const opFollowed = opFset.has("op:" + x.issue);
       const cached = aiCacheGet(key);
       const t = (cached || {}).title || x.issue;
       const open = state.opSel === i;
@@ -2882,9 +2911,13 @@ function renderHome() {
           ${ex && (ex.stances || []).length ? `<button class="optog" data-optog="st">${stOpen ? "▴" : "▾"} 신문별 메시지 <small>${ex.stances.length}곳</small></button>
             ${stOpen ? `<ul class="stances">${ex.stances.map(s => { const pn = pressName(s.press); const art = pieces.find(a => a.press === pn) || pieces.find(a => a.press && (a.press.includes(pn) || pn.includes(a.press)));
               return `<li><b>${esc(pn)}</b><span>${esc(s.view)}${art ? `<a class="stlink" href="${esc(art.url)}" target="_blank" rel="noopener">${esc(art.kind || "사설")} 보기 ↗</a>` : ""}</span></li>`; }).join("")}</ul>` : ""}` : ""}
+          <div class="ai-key">
+            <button class="btn ${opFollowed ? "" : "primary"}" data-opfollow="${i}">${opFollowed ? "⭐ 팔로우 중 (그만 보기)" : "⭐ 이 이슈 팔로우"}</button>
+            <button class="btn" data-opnote="${i}">📒 이슈 노트에 담기</button>
+          </div>
         </div>`;
       }
-      return `<div class="oprow ${open ? "on" : ""}"><button class="ophead" data-op="${i}" aria-expanded="${open}"><span class="oprank">${i + 1}</span><span class="opname">${esc(t)}</span><small>${x.papers}개 신문</small><span class="opchev">${open ? "▴" : "▾"}</span></button>${body}</div>`;
+      return `<div class="oprow ${open ? "on" : ""}"><button class="ophead" data-op="${i}" aria-expanded="${open}"><span class="oprank">${i + 1}</span><span class="opname">${esc(t)}</span><small>${x.papers}개 신문${opFollowed ? " ⭐" : ""}</small><span class="opchev">${open ? "▴" : "▾"}</span></button>${body}</div>`;
     };
     opHtml = `<div class="box">${stNote}<h3 class="hm-title">미디어가 주목한 오늘의 이슈 <small>신문 사설에서 공통된 키워드를 뽑아 신문별 논조를 정리해줘요</small></h3>
       <div class="oplist">${iss.map(row).join("")}</div></div>`;
@@ -3007,6 +3040,8 @@ $("topbox").addEventListener("click", e => {
   if (w && state.dropMode) { setWordStops([...wordStops(), w.dataset.word]); render(); return; }
   if (w) { state.view = "news"; state.sec = "전체"; state.chip = "전체"; state.q = w.dataset.word; $("q").value = state.q; render(); window.scrollTo(0, 0); return; }
   const k = q("[data-kw]"); if (k) { state.view = "news"; state.sec = "전체"; state.chip = "전체"; state.kwSel = k.dataset.kw; state.q = ""; $("q").value = ""; render(); window.scrollTo(0, 0); return; }
+  const opf = q("[data-opfollow]"); if (opf) { const x = ((d().issues || {}).items || [])[+opf.dataset.opfollow]; if (x) toggleFollow(opFollowObj(x)); return; }
+  const opn = q("[data-opnote]"); if (opn) { const x = ((d().issues || {}).items || [])[+opn.dataset.opnote]; if (x) opToNote(x); return; }
   const op = q("[data-op]"); if (op) { const i = +op.dataset.op; state.opSel = state.opSel === i ? null : i; state.opTog = null; render(); return; }
   const ot = q("[data-optog]"); if (ot) { state.opTog = state.opTog === ot.dataset.optog ? null : ot.dataset.optog; render(); return; }
   const rt = q("[data-opretry]"); if (rt) { delete aiErr[rt.dataset.opretry]; render(); return; }
