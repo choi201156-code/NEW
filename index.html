@@ -396,7 +396,8 @@
     border: 1px solid rgba(255, 255, 255, 0.3); 
   }
   header .btn:hover, header select:hover { background: rgba(255, 255, 255, 0.25); }
-  
+    header .btn.need { border: 1.5px solid #f5c542; background: rgba(245, 197, 66, 0.18); animation: needPulse 2s infinite; }
+  @keyframes needPulse { 0% { box-shadow: 0 0 0 0 rgba(245, 197, 66, 0.6); } 70% { box-shadow: 0 0 0 8px rgba(245, 197, 66, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 197, 66, 0); } }
   header .view { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); border-color: transparent; }
   header .view.on { background: #ffffff; color: var(--accent); border-color: #ffffff; }
   header .view small { background: none; color: #ffffff; padding: 0; }
@@ -647,8 +648,7 @@ header input[type="date"].btn::-webkit-calendar-picker-indicator { filter: inver
   header .top #acctBtn { order: 4; flex: none; min-height: 40px; font-size: 13px; padding: 6px 10px; white-space: nowrap; }
 
   /* 원래 버튼 3개와 ? 는 모바일에서 숨김 (메뉴판에서 대신 눌러 줌) */
-  header .top #levelBtn, header .top #openAi, header .top #openSettings, header .top #helpBtn, header .top #notePopBtn { display: none; }
-
+  header .top #levelBtn, header .top #aiConnect, header .top #openAi, header .top #openSettings, header .top #helpBtn, header .top #notePopBtn { display: none; }
   /* 소개 문구 + 아래 선, 탭은 가로 스크롤 */
   header .tagline { display: block; margin: 0; padding: 9px 0; font-size: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.25); }
   header .views { flex-wrap: nowrap; overflow-x: auto; padding-top: 10px; }
@@ -731,6 +731,7 @@ body.notepop .home-side { display: none; }
             <button class="btn" id="notePopBtn" type="button" onclick="window.open(location.pathname + '#notepop', 'issuenote', 'width=460,height=720,left=' + (screen.width - 480) + ',top=60')">📝 노트 팝업</button>
 
       <button class="btn" id="levelBtn">📊 레벨테스트</button>
+      <button class="btn" id="aiConnect">🔑 AI 연결</button>
       <button class="btn" id="openSettings">⚙ 키워드 설정</button>
       <input type="date" id="date" class="btn" aria-label="날짜 선택" style="background-color: transparent; color: white; border: 1px solid rgba(255,255,255,0.4); border-radius: 12px; padding: 6px 12px; font-size: 15px; outline: none; cursor: pointer; font-family: inherit;">
       <button class="btn" id="acctBtn"> 로그인</button>
@@ -1726,6 +1727,7 @@ function keyState() {
   const c = aiCfg();
   $("keyState").textContent = hasAiKey() ? `— ${aiName(c)} 연결됨 ✓` : "— 먼저 키를 넣어주세요";
   if (!hasAiKey()) $("keyBox").open = true;
+    aiConnectState();
 }
 function showProvider() {
   const v = $("provider").value;
@@ -2068,7 +2070,19 @@ async function send() {
 $("send").onclick = send;
 $("ask").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } };
 $("openAi").onclick = () => { $("panel").classList.remove("open"); $("aiPanel").classList.toggle("open"); keyState(); window.scrollTo(0, 0); };
-
+function aiConnectState() {
+  const b = $("aiConnect"); if (!b) return;
+  b.textContent = hasAiKey() ? "🔑 AI 연결됨 ✓" : "🔑 AI 연결";
+  b.classList.toggle("need", !hasAiKey());
+}
+$("aiConnect").onclick = () => {
+  $("panel").classList.remove("open");
+  $("aiPanel").classList.add("open");
+  $("keyBox").open = true;
+  keyState();
+  $("keyBox").scrollIntoView({ behavior: "smooth", block: "center" });
+};
+aiConnectState();
 /* ---------- GitHub 연결 ---------- */
 const b64 = str => { const bytes = new TextEncoder().encode(str); let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b)); return btoa(bin); };
 const unb64 = b => new TextDecoder().decode(Uint8Array.from(atob(b.replace(/\n/g, "")), c => c.charCodeAt(0)));
@@ -3204,8 +3218,7 @@ function welcomeInit() {
 (function () {
   var mb = document.getElementById("menuBtn");
   if (!mb) return;
-  var items = [["levelBtn", "레벨테스트"], ["openSettings", "키워드 설정"], ["helpBtn", "사용법 다시 보기"]];
-
+  var items = [["levelBtn", "레벨테스트"], ["aiConnect", "AI 연결"], ["openSettings", "키워드 설정"], ["helpBtn", "사용법 다시 보기"]];
   var ov = document.createElement("div");
   ov.className = "nav-ov";
   var dr = document.createElement("nav");
