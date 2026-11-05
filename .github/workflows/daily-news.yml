@@ -32,17 +32,23 @@ jobs:
           CHATKU_BASE_URL: ${{ secrets.CHATKU_BASE_URL }}
           CHATKU_MODEL: ${{ secrets.CHATKU_MODEL }}
           PYTHONUTF8: "1"
-        shell: bash
+        shell: powershell
         run: |
-          mkdir -p docs/data && cp -r data/. docs/data/ 2>/dev/null || true
+          $ErrorActionPreference = 'Continue'
+          New-Item -ItemType Directory -Force -Path docs\data | Out-Null
+          if (Test-Path data) { Copy-Item -Path data\* -Destination docs\data\ -Recurse -Force }
           python fetch_news.py
-          rm -rf data && cp -r docs/data data
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path data) { Remove-Item -Recurse -Force data }
+          Copy-Item -Path docs\data -Destination data -Recurse
       - name: 결과 저장
-        shell: bash
+        shell: powershell
         run: |
+          $ErrorActionPreference = 'Continue'
           git config user.name "news-bot"
           git config user.email "news-bot@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || git commit -m "뉴스 업데이트 $(TZ=Asia/Seoul date +%F)"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) { git commit -m "news update $(Get-Date -Format yyyy-MM-dd)" }
           git pull --rebase --autostash
           git push
