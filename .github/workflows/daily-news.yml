@@ -2,7 +2,7 @@ name: 매일 뉴스 수집
 
 on:
   schedule:
-    - cron: "7 22,1,4,7,10,13 * * *"   # 한국시간 7·10·13·16·19·22시
+    - cron: "7 22,1,4,7,10,13 * * *"   # 한국시간 7·10·13·16·19·22시 (하루 6번)
   workflow_dispatch:
   push:
     paths:
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   fetch:
-    runs-on: self-hosted
+    runs-on: self-hosted        # 국내 서버에 설치한 러너
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -32,23 +32,15 @@ jobs:
           CHATKU_BASE_URL: ${{ secrets.CHATKU_BASE_URL }}
           CHATKU_MODEL: ${{ secrets.CHATKU_MODEL }}
           PYTHONUTF8: "1"
-        shell: powershell
         run: |
-          $ErrorActionPreference = 'Continue'
-          New-Item -ItemType Directory -Force -Path docs\data | Out-Null
-          if (Test-Path data) { Copy-Item -Path data\* -Destination docs\data\ -Recurse -Force }
+          mkdir -p docs/data && cp -r data/. docs/data/ 2>/dev/null || true
           python fetch_news.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (Test-Path data) { Remove-Item -Recurse -Force data }
-          Copy-Item -Path docs\data -Destination data -Recurse
+          rm -rf data && cp -r docs/data data
       - name: 결과 저장
-        shell: powershell
         run: |
-          $ErrorActionPreference = 'Continue'
           git config user.name "news-bot"
           git config user.email "news-bot@users.noreply.github.com"
           git add data
-          git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) { git commit -m "news update $(Get-Date -Format yyyy-MM-dd)" }
+          git diff --cached --quiet || git commit -m "news update $(TZ=Asia/Seoul date +%F)"
           git pull --rebase --autostash
           git push
